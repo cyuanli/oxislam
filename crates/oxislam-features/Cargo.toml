@@ -1,0 +1,12 @@
+[package]
+name = "oxislam-features"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0", optional = true, features = ["derive"] }
+oxislam-geometry = { path = "../oxislam-geometry" }
+
+[features]
+default = []
+serde = ["dep:serde"]

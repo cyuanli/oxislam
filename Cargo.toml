@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/oxislam-features", "crates/oxislam-geometry", "crates/oxislam-image"]
+resolver = "3"
