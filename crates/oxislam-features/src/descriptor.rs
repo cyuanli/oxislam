@@ -23,9 +23,7 @@ impl Descriptor {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     pub fn as_binary(&self) -> Option<&[u8]> {
         match self {

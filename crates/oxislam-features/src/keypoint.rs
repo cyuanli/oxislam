@@ -1,5 +1,4 @@
 use oxislam_geometry::Point2;
-
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 

@@ -73,6 +73,7 @@ name = "oxislam-features"
 version = "0.1.0"
 dependencies = [
  "oxislam-geometry",
+ "oxislam-image",
  "serde",
 ]
 
