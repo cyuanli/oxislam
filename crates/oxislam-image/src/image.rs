@@ -77,6 +77,16 @@ impl<P> Image<P> {
 }
 
 impl<'a, P> ImageView<'a, P> {
+    /// Create a new image view from borrowed data
+    pub fn new(data: &'a [P], width: usize, height: usize, stride: usize) -> Self {
+        assert!(width > 0);
+        assert!(height > 0);
+        assert!(stride >= width);
+        assert!(data.len() >= stride * height);
+
+        Self { width, height, stride, data }
+    }
+
     #[inline]
     pub fn width(&self) -> usize { self.width }
     #[inline]
