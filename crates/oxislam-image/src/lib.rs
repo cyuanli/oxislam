@@ -1,4 +1,5 @@
 pub mod image;
 pub mod pixel;
 
-pub use pixel::{Gray, Rgb, ToGrayscale};
+pub use image::ConvertTo;
+pub use pixel::{Gray, Rgb};
