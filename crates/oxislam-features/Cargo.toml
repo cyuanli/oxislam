@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rayon = { version = "1.11", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 oxislam-geometry = { path = "../oxislam-geometry" }
 oxislam-image = { path = "../oxislam-image" }
 
 [features]
 default = []
+rayon = ["dep:rayon"]
 serde = ["dep:serde"]
