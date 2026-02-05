@@ -185,10 +185,10 @@ impl<'a, P> ImageViewMut<'a, P> {
     pub fn stride(&self) -> usize { self.stride }
 
     #[inline]
-    pub fn data(&self) -> &[P] { &self.data }
+    pub fn data(&self) -> &[P] { self.data }
 
     #[inline]
-    pub fn data_mut(&mut self) -> &mut [P] { &mut self.data }
+    pub fn data_mut(&mut self) -> &mut [P] { self.data }
 
     #[inline]
     pub fn index(&self, x: usize, y: usize) -> usize {

@@ -8,7 +8,5 @@ pub struct Feature<D> {
 
 impl<D> Feature<D> {
     #[inline]
-    pub fn new(keypoint: Keypoint, descriptor: D) -> Self {
-        Self { keypoint, descriptor }
-    }
+    pub fn new(keypoint: Keypoint, descriptor: D) -> Self { Self { keypoint, descriptor } }
 }

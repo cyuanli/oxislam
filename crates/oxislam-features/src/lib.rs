@@ -5,4 +5,3 @@ pub mod traits;
 
 pub mod descriptor;
 pub mod detector;
-pub mod matcher;

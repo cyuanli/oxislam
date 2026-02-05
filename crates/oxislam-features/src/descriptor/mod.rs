@@ -1,3 +1,3 @@
 pub mod patch;
 
-pub use patch::{Patch, PatchExtractor};
+pub use patch::{PatchDescriptor, PatchExtractor};

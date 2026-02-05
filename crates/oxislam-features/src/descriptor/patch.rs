@@ -3,7 +3,6 @@ use oxislam_image::image::ImageView;
 
 use crate::keypoint::Keypoint;
 use crate::traits::descriptor::DescriptorExtractor;
-use crate::traits::metric::FloatDescriptor;
 
 #[derive(Debug, Clone)]
 pub struct PatchExtractor<const N: usize, const L: usize> {
@@ -26,7 +25,7 @@ impl<const N: usize, const L: usize> PatchExtractor<N, L> {
     pub const fn descriptor_length(&self) -> usize { L }
 
     #[inline]
-    fn build<P, F>(&self, view: ImageView<P>, to_f32: F) -> Patch<L>
+    fn build<P, F>(&self, view: ImageView<P>, to_f32: F) -> PatchDescriptor<L>
     where
         F: Fn(&P) -> f32,
     {
@@ -39,7 +38,7 @@ impl<const N: usize, const L: usize> PatchExtractor<N, L> {
             Self::normalize(&mut data);
         }
 
-        Patch::new(data)
+        PatchDescriptor::new(data)
     }
 
     #[inline]
@@ -65,24 +64,23 @@ impl<const N: usize, const L: usize> Default for PatchExtractor<N, L> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Patch<const L: usize> {
+pub struct PatchDescriptor<const L: usize> {
     data: [f32; L],
 }
 
-impl<const L: usize> Patch<L> {
+impl<const L: usize> PatchDescriptor<L> {
     #[inline]
     pub fn new(data: [f32; L]) -> Self { Self { data } }
 }
 
-impl<const L: usize> FloatDescriptor for Patch<L> {
-    #[inline]
-    fn data(&self) -> &[f32] { &self.data }
-}
-
-impl<const N: usize, const L: usize> DescriptorExtractor<Gray<f32>, Patch<L>>
+impl<const N: usize, const L: usize> DescriptorExtractor<Gray<f32>, PatchDescriptor<L>>
     for PatchExtractor<N, L>
 {
-    fn describe_one(&self, image: &ImageView<Gray<f32>>, kp: &Keypoint) -> Option<Patch<L>> {
+    fn describe_one(
+        &self,
+        image: &ImageView<Gray<f32>>,
+        kp: &Keypoint,
+    ) -> Option<PatchDescriptor<L>> {
         let patch = image.patch(kp.position.x, kp.position.y, N)?;
         Some(self.build(patch, |p| p.value))
     }
