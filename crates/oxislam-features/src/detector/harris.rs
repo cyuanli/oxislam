@@ -1,8 +1,7 @@
 use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
+use oxislam_image::parallel::{par_flat_map, par_row_collect};
 use oxislam_image::{Gray, gaussian_3x3, sobel};
-#[cfg(feature = "rayon")]
-use rayon::prelude::*;
 
 use crate::keypoint::Keypoint;
 use crate::traits::detector::KeypointDetector;
@@ -51,7 +50,6 @@ impl HarrisDetector {
         Gray::new(det - self.k * trace * trace)
     }
 
-    #[cfg(feature = "rayon")]
     fn response_map(
         &self,
         sxx: &ImageView<Gray<f32>>,
@@ -61,30 +59,7 @@ impl HarrisDetector {
         let w = sxx.width();
         let h = sxx.height();
 
-        let data: Vec<_> = (0..h)
-            .into_par_iter()
-            .flat_map_iter(|y| (0..w).map(move |x| self.response_at(sxx, syy, sxy, x, y)))
-            .collect();
-
-        Image::new(w, h, w, data)
-    }
-
-    #[cfg(not(feature = "rayon"))]
-    fn response_map(
-        &self,
-        sxx: &ImageView<Gray<f32>>,
-        syy: &ImageView<Gray<f32>>,
-        sxy: &ImageView<Gray<f32>>,
-    ) -> Image<Gray<f32>> {
-        let w = sxx.width();
-        let h = sxx.height();
-
-        let mut data = Vec::with_capacity(w * h);
-        for y in 0..h {
-            for x in 0..w {
-                data.push(self.response_at(sxx, syy, sxy, x, y));
-            }
-        }
+        let data = par_row_collect(w, h, |x, y| self.response_at(sxx, syy, sxy, x, y));
 
         Image::new(w, h, w, data)
     }
@@ -136,12 +111,6 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
                 .collect()
         };
 
-        #[cfg(feature = "rayon")]
-        let keypoints: Vec<_> = (0..h).into_par_iter().flat_map_iter(extract_row).collect();
-
-        #[cfg(not(feature = "rayon"))]
-        let keypoints: Vec<_> = (0..h).flat_map(extract_row).collect();
-
-        keypoints
+        par_flat_map(0..h, extract_row)
     }
 }
