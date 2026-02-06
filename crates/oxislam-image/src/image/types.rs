@@ -230,6 +230,8 @@ impl<T: RawPixel> Image<Gray<T>> {
         assert!(stride >= width);
         assert!(data.len() >= stride * height);
 
+        // SAFETY: Gray<T> is repr(transparent), so its layout is identical to T.
+        // We're just reinterpreting the vector's memory to change the type.
         let gray_data = unsafe {
             let ptr = data.as_ptr() as *const Gray<T>;
             let len = data.len();
@@ -246,6 +248,8 @@ impl<T: RawPixel> Image<Gray<T>> {
         let height = self.height;
         let stride = self.stride;
 
+        // SAFETY: Gray<T> is repr(transparent), so its layout is identical to T.
+        // We're reinterpreting back to the original raw type.
         let raw_data = unsafe {
             let ptr = self.data.as_ptr() as *const T;
             let len = self.data.len();
@@ -258,10 +262,12 @@ impl<T: RawPixel> Image<Gray<T>> {
     }
 
     pub fn as_raw(&self) -> &[T] {
+        // SAFETY: Gray<T> is repr(transparent), so a &[Gray<T>] can be safely reinterpreted as &[T].
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, self.data.len()) }
     }
 
     pub fn as_raw_mut(&mut self) -> &mut [T] {
+        // SAFETY: Gray<T> is repr(transparent), so &mut [Gray<T>] can be safely reinterpreted as &mut [T].
         unsafe { std::slice::from_raw_parts_mut(self.data.as_mut_ptr() as *mut T, self.data.len()) }
     }
 }

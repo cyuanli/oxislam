@@ -1,3 +1,7 @@
+//! Image processing utilities.
+//!
+//! Provides image types, filtering operations, pixel formats, and parallel processing utilities.
+
 pub mod filter;
 pub mod image;
 pub mod parallel;
