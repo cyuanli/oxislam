@@ -1,7 +1,11 @@
 [package]
 name = "oxislam-features"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Feature extraction and matching algorithms"
 
 [dependencies]
 rayon = { version = "1.11", optional = true }
@@ -11,5 +15,5 @@ oxislam-image = { path = "../oxislam-image" }
 
 [features]
 default = []
-rayon = ["dep:rayon"]
-serde = ["dep:serde"]
+rayon = ["dep:rayon", "oxislam-image/rayon"]
+serde = ["dep:serde", "oxislam-geometry/serde"]

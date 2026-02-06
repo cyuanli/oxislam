@@ -1,11 +1,15 @@
 [package]
 name = "oxislam-image"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Image processing primitives for computer vision"
 
 [dependencies]
 rayon = { version = "1.11", optional = true }
 
 [features]
 default = []
-parallel = ["rayon"]
+rayon = ["dep:rayon"]

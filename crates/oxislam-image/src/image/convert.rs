@@ -1,4 +1,4 @@
-#[cfg(feature = "parallel")]
+#[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
 use super::types::{Image, ImageView};
@@ -8,7 +8,7 @@ pub trait ConvertTo<T> {
     fn to(&self) -> T;
 }
 
-#[cfg(feature = "parallel")]
+#[cfg(feature = "rayon")]
 #[inline]
 fn convert_rows<S, D, F>(width: usize, height: usize, stride: usize, data: &[S], f: F) -> Vec<D>
 where
@@ -25,7 +25,7 @@ where
         .collect()
 }
 
-#[cfg(not(feature = "parallel"))]
+#[cfg(not(feature = "rayon"))]
 #[inline]
 fn convert_rows<S, D, F>(width: usize, height: usize, stride: usize, data: &[S], f: F) -> Vec<D>
 where
@@ -118,7 +118,7 @@ impl ConvertTo<Image<Gray<f32>>> for ImageView<'_, Rgb<f32>> {
 }
 
 // Identity (clone with compact output)
-#[cfg(feature = "parallel")]
+#[cfg(feature = "rayon")]
 impl<P: Clone + Send + Sync> ConvertTo<Image<P>> for ImageView<'_, P> {
     fn to(&self) -> Image<P> {
         let (w, h, s, data) = (self.width(), self.height(), self.stride(), self.data());
@@ -126,7 +126,7 @@ impl<P: Clone + Send + Sync> ConvertTo<Image<P>> for ImageView<'_, P> {
     }
 }
 
-#[cfg(not(feature = "parallel"))]
+#[cfg(not(feature = "rayon"))]
 impl<P: Clone> ConvertTo<Image<P>> for ImageView<'_, P> {
     fn to(&self) -> Image<P> {
         let (w, h, s, data) = (self.width(), self.height(), self.stride(), self.data());
