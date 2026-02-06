@@ -265,3 +265,52 @@ impl<T: RawPixel> Image<Gray<T>> {
         unsafe { std::slice::from_raw_parts_mut(self.data.as_mut_ptr() as *mut T, self.data.len()) }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_raw_into_raw_roundtrip() {
+        let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let img = Image::<Gray<f32>>::from_raw(3, 2, 3, data.clone());
+
+        assert_eq!(img.get(0, 0).value, 1.0);
+        assert_eq!(img.get(1, 0).value, 2.0);
+        assert_eq!(img.get(2, 0).value, 3.0);
+        assert_eq!(img.get(0, 1).value, 4.0);
+        assert_eq!(img.get(1, 1).value, 5.0);
+        assert_eq!(img.get(2, 1).value, 6.0);
+        assert_eq!(img.as_raw(), &data[..]);
+
+        let (_w, _h, _s, raw) = img.into_raw();
+
+        assert_eq!(raw, data);
+    }
+
+    #[test]
+    fn subview_stride_correctness() {
+        // 4x4 image with stride=5 (one padding column per row)
+        // Layout in memory (stride=5):
+        //  row0: [ 1,  2,  3,  4, 0]
+        //  row1: [ 5,  6,  7,  8, 0]
+        //  row2: [ 9, 10, 11, 12, 0]
+        //  row3: [13, 14, 15, 16, 0]
+        let mut data = Vec::with_capacity(5 * 4);
+        for row in 0..4usize {
+            for col in 0..4usize {
+                data.push(Gray::new((row * 4 + col + 1) as f32));
+            }
+            data.push(Gray::new(0.0)); // padding
+        }
+        let img = Image::new(4, 4, 5, data);
+        let view = img.view();
+
+        let sub = view.subview(1, 1, 2, 2).unwrap();
+        assert_eq!(sub.stride(), 5);
+        assert_eq!(sub.get(0, 0).value, 6.0);
+        assert_eq!(sub.get(1, 0).value, 7.0);
+        assert_eq!(sub.get(0, 1).value, 10.0);
+        assert_eq!(sub.get(1, 1).value, 11.0);
+    }
+}

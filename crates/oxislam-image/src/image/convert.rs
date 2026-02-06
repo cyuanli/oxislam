@@ -109,3 +109,26 @@ impl<P: Clone + MaybeSend + MaybeSync> ConvertTo<Image<P>> for ImageView<'_, P> 
         Image::new(w, h, w, par_row_collect(w, h, |x, y| d[y * s + x].clone()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rgb_to_gray_luminance_weights() {
+        // Pure red
+        let red = Image::new(1, 1, 1, vec![Rgb::new(255u8, 0u8, 0u8)]);
+        let gray_r: Image<Gray<f32>> = red.view().to();
+        assert!((gray_r.get(0, 0).value - 0.299).abs() < 1e-6);
+
+        // Pure green
+        let green = Image::new(1, 1, 1, vec![Rgb::new(0u8, 255u8, 0u8)]);
+        let gray_g: Image<Gray<f32>> = green.view().to();
+        assert!((gray_g.get(0, 0).value - 0.587).abs() < 1e-6);
+
+        // Pure blue
+        let blue = Image::new(1, 1, 1, vec![Rgb::new(0u8, 0u8, 255u8)]);
+        let gray_b: Image<Gray<f32>> = blue.view().to();
+        assert!((gray_b.get(0, 0).value - 0.114).abs() < 1e-6);
+    }
+}

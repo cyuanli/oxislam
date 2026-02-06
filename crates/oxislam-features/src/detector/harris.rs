@@ -114,3 +114,64 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
         par_flat_map(0..h, extract_row)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn corner_image() -> Image<Gray<f32>> {
+        // 10x10 image: 5x5 white square in top-left, rest black
+        let mut data = vec![Gray::new(0.0f32); 10 * 10];
+        for y in 0..5 {
+            for x in 0..5 {
+                data[y * 10 + x] = Gray::new(1.0);
+            }
+        }
+        Image::new(10, 10, 10, data)
+    }
+
+    #[test]
+    fn harris_detects_corner() {
+        let img = corner_image();
+        let detector = HarrisDetector::default();
+        let keypoints = detector.detect(&img.view());
+
+        assert_eq!(keypoints.len(), 1, "Harris should detect exactly one keypoint");
+
+        let kp = &keypoints[0];
+        let dx = kp.position.x - 4.0;
+        let dy = kp.position.y - 4.0;
+        let dist = (dx * dx + dy * dy).sqrt();
+
+        assert!(dist <= 1.0, "Expected keypoint within 1 pixel of (4, 4), got distance {dist}");
+    }
+
+    #[test]
+    fn harris_four_corners() {
+        // 30x30 image with a 10x10 white rectangle at (10,10)-(19,19)
+        // This creates 4 L-corners at (10,10), (19,10), (10,19), (19,19)
+        let size = 30;
+        let mut data = vec![Gray::new(0.0f32); size * size];
+        for y in 10..20 {
+            for x in 10..20 {
+                data[y * size + x] = Gray::new(1.0);
+            }
+        }
+        let img = Image::new(size, size, size, data);
+
+        let detector = HarrisDetector::default();
+        let keypoints = detector.detect(&img.view());
+
+        let expected = [(10.0, 10.0), (19.0, 10.0), (10.0, 19.0), (19.0, 19.0)];
+        assert_eq!(keypoints.len(), expected.len(), "expected 4 corners, got {}", keypoints.len());
+
+        for (ex, ey) in &expected {
+            let found = keypoints.iter().any(|kp| {
+                let dx = kp.position.x - ex;
+                let dy = kp.position.y - ey;
+                (dx * dx + dy * dy).sqrt() <= 1.0
+            });
+            assert!(found, "expected a keypoint within 1 pixel of ({ex}, {ey})");
+        }
+    }
+}

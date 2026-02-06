@@ -35,3 +35,30 @@ pub fn apply_kernel<const N: usize>(
 
     Image::new(out_w, out_h, out_w, data)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn convolution_identity_kernel() {
+        let data: Vec<Gray<f32>> = (1..=16).map(|v| Gray::new(v as f32)).collect();
+        let img = Image::new(4, 4, 4, data);
+
+        #[rustfmt::skip]
+        let identity: Kernel<3> = [
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ];
+
+        let out = apply_kernel(&img.view(), &identity);
+
+        assert_eq!(out.width(), 2);
+        assert_eq!(out.height(), 2);
+        assert_eq!(out.get(0, 0).value, 6.0);
+        assert_eq!(out.get(1, 0).value, 7.0);
+        assert_eq!(out.get(0, 1).value, 10.0);
+        assert_eq!(out.get(1, 1).value, 11.0);
+    }
+}
