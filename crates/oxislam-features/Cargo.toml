@@ -17,3 +17,7 @@ oxislam-image = { path = "../oxislam-image" }
 default = []
 rayon = ["dep:rayon", "oxislam-image/rayon"]
 serde = ["dep:serde", "oxislam-geometry/serde"]
+
+[dev-dependencies]
+image = "0.25"
+clap = { version = "4.5", features = ["derive"] }

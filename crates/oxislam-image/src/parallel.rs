@@ -1,7 +1,7 @@
+use std::ops::Range;
+
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
-
-use std::ops::Range;
 
 // Conditional Send/Sync bounds: require Send/Sync only when rayon is enabled.
 
@@ -33,10 +33,7 @@ where
     #[cfg(feature = "rayon")]
     {
         let f = &f;
-        (0..height)
-            .into_par_iter()
-            .flat_map_iter(|y| (0..width).map(move |x| f(x, y)))
-            .collect()
+        (0..height).into_par_iter().flat_map_iter(|y| (0..width).map(move |x| f(x, y))).collect()
     }
     #[cfg(not(feature = "rayon"))]
     {
