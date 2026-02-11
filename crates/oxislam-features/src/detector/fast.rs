@@ -1,6 +1,7 @@
-use oxislam_image::Gray;
-use oxislam_image::image::{Image, ImageView};
+use oxislam_image::Grid2D;
+use oxislam_image::image::ImageView;
 use oxislam_image::parallel::par_row_collect;
+use oxislam_image::Gray;
 
 use super::non_maximum_suppression;
 use crate::keypoint::Keypoint;
@@ -98,9 +99,9 @@ impl FastDetector {
         max_score
     }
 
-    fn response_at(&self, image: &ImageView<Gray<f32>>, x: usize, y: usize) -> Gray<f32> {
+    fn response_at(&self, image: &ImageView<Gray<f32>>, x: usize, y: usize) -> f32 {
         if x < 3 || y < 3 || x >= image.width() - 3 || y >= image.height() - 3 {
-            return Gray::new(0.0);
+            return 0.0;
         }
 
         let center = image.get(x, y).value;
@@ -110,7 +111,7 @@ impl FastDetector {
         let low = center - self.threshold;
 
         if self.quick_reject(&circle, high, low) {
-            return Gray::new(0.0);
+            return 0.0;
         }
 
         let mut brighter: u8 = 0;
@@ -131,23 +132,23 @@ impl FastDetector {
             }
 
             if brighter >= self.n {
-                return Gray::new(self.arc_score(&circle, |v| v - high));
+                return self.arc_score(&circle, |v| v - high);
             }
             if darker >= self.n {
-                return Gray::new(self.arc_score(&circle, |v| low - v));
+                return self.arc_score(&circle, |v| low - v);
             }
         }
 
-        Gray::new(0.0)
+        0.0
     }
 
-    fn response_map(&self, image: &ImageView<Gray<f32>>) -> Image<Gray<f32>> {
+    fn response_map(&self, image: &ImageView<Gray<f32>>) -> Grid2D<f32> {
         let w = image.width();
         let h = image.height();
 
         let data = par_row_collect(w, h, |x, y| self.response_at(image, x, y));
 
-        Image::new(w, h, w, data)
+        Grid2D::new(w, h, w, data)
     }
 }
 
@@ -166,6 +167,8 @@ impl KeypointDetector<Gray<f32>> for FastDetector {
 
 #[cfg(test)]
 mod tests {
+    use oxislam_image::image::Image;
+
     use super::*;
 
     #[test]

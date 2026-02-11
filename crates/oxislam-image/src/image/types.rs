@@ -1,121 +1,89 @@
+use crate::grid::{Grid2D, Grid2DView, Grid2DViewMut};
 use crate::pixel::Gray;
 
 #[derive(Debug)]
 pub struct Image<P> {
-    width: usize,
-    height: usize,
-    stride: usize,
-    data: Vec<P>,
+    grid: Grid2D<P>,
 }
 
 #[derive(Debug)]
 pub struct ImageView<'a, P> {
-    width: usize,
-    height: usize,
-    stride: usize,
-    data: &'a [P],
+    grid: Grid2DView<'a, P>,
 }
 
 #[derive(Debug)]
 pub struct ImageViewMut<'a, P> {
-    width: usize,
-    height: usize,
-    stride: usize,
-    data: &'a mut [P],
+    grid: Grid2DViewMut<'a, P>,
 }
+
+// --- Image<P> ---
 
 impl<P> Image<P> {
     pub fn new(width: usize, height: usize, stride: usize, data: Vec<P>) -> Self {
-        assert!(width > 0);
-        assert!(height > 0);
-        assert!(stride >= width);
-        assert!(data.len() >= stride * height);
-
-        Self { width, height, stride, data }
+        Self { grid: Grid2D::new(width, height, stride, data) }
     }
 
     #[inline]
-    pub fn width(&self) -> usize { self.width }
+    pub fn width(&self) -> usize { self.grid.width() }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height }
+    pub fn height(&self) -> usize { self.grid.height() }
 
     #[inline]
-    pub fn stride(&self) -> usize { self.stride }
+    pub fn stride(&self) -> usize { self.grid.stride() }
 
     #[inline]
-    pub fn data(&self) -> &[P] { &self.data }
+    pub fn data(&self) -> &[P] { self.grid.data() }
 
     #[inline]
-    pub fn data_mut(&mut self) -> &mut [P] { &mut self.data }
+    pub fn data_mut(&mut self) -> &mut [P] { self.grid.data_mut() }
 
     #[inline]
-    pub fn index(&self, x: usize, y: usize) -> usize {
-        debug_assert!(x < self.width);
-        debug_assert!(y < self.height);
-        y * self.stride + x
-    }
+    pub fn index(&self, x: usize, y: usize) -> usize { self.grid.index(x, y) }
 
     #[inline]
-    pub fn get(&self, x: usize, y: usize) -> &P {
-        let idx = self.index(x, y);
-        &self.data[idx]
-    }
+    pub fn get(&self, x: usize, y: usize) -> &P { self.grid.get(x, y) }
 
     #[inline]
-    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut P {
-        let idx = self.index(x, y);
-        &mut self.data[idx]
-    }
+    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut P { self.grid.get_mut(x, y) }
 
-    pub fn view(&self) -> ImageView<'_, P> {
-        ImageView { width: self.width, height: self.height, stride: self.stride, data: &self.data }
-    }
+    pub fn view(&self) -> ImageView<'_, P> { ImageView { grid: self.grid.view() } }
 
     pub fn view_mut(&mut self) -> ImageViewMut<'_, P> {
-        ImageViewMut {
-            width: self.width,
-            height: self.height,
-            stride: self.stride,
-            data: &mut self.data,
-        }
+        ImageViewMut { grid: self.grid.view_mut() }
     }
 }
 
+impl<P: Clone> Image<P> {
+    pub fn filled(width: usize, height: usize, value: P) -> Self {
+        Self { grid: Grid2D::filled(width, height, value) }
+    }
+}
+
+// --- ImageView<P> ---
+
 impl<'a, P> ImageView<'a, P> {
     pub fn new(data: &'a [P], width: usize, height: usize, stride: usize) -> Self {
-        assert!(width > 0);
-        assert!(height > 0);
-        assert!(stride >= width);
-        assert!(data.len() >= stride * height);
-
-        Self { width, height, stride, data }
+        Self { grid: Grid2DView::new(data, width, height, stride) }
     }
 
     #[inline]
-    pub fn width(&self) -> usize { self.width }
+    pub fn width(&self) -> usize { self.grid.width() }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height }
+    pub fn height(&self) -> usize { self.grid.height() }
 
     #[inline]
-    pub fn stride(&self) -> usize { self.stride }
+    pub fn stride(&self) -> usize { self.grid.stride() }
 
     #[inline]
-    pub fn data(&self) -> &'a [P] { self.data }
+    pub fn data(&self) -> &'a [P] { self.grid.data() }
 
     #[inline]
-    pub fn index(&self, x: usize, y: usize) -> usize {
-        debug_assert!(x < self.width);
-        debug_assert!(y < self.height);
-        y * self.stride + x
-    }
+    pub fn index(&self, x: usize, y: usize) -> usize { self.grid.index(x, y) }
 
     #[inline]
-    pub fn get(&self, x: usize, y: usize) -> &P {
-        let idx = self.index(x, y);
-        &self.data[idx]
-    }
+    pub fn get(&self, x: usize, y: usize) -> &P { self.grid.get(x, y) }
 
     pub fn subview(
         &self,
@@ -124,30 +92,12 @@ impl<'a, P> ImageView<'a, P> {
         width: usize,
         height: usize,
     ) -> Option<ImageView<'a, P>> {
-        if width == 0 || height == 0 {
-            return None;
-        }
-        if x + width > self.width || y + height > self.height {
-            return None;
-        }
-
-        let offset = y * self.stride + x;
-        Some(ImageView { width, height, stride: self.stride, data: &self.data[offset..] })
+        self.grid.subview(x, y, width, height).map(|g| ImageView { grid: g })
     }
 
-    pub fn pixels(&self) -> impl Iterator<Item = &P> {
-        (0..self.height).flat_map(move |y| {
-            let row_start = y * self.stride;
-            (0..self.width).map(move |x| &self.data[row_start + x])
-        })
-    }
+    pub fn pixels(&self) -> impl Iterator<Item = &P> { self.grid.iter() }
 
-    pub fn rows(&self) -> impl Iterator<Item = &[P]> {
-        (0..self.height).map(move |y| {
-            let start = y * self.stride;
-            &self.data[start..start + self.width]
-        })
-    }
+    pub fn rows(&self) -> impl Iterator<Item = &[P]> { self.grid.rows() }
 
     pub fn patch(&self, cx: f32, cy: f32, size: usize) -> Option<ImageView<'a, P>> {
         let half = (size / 2) as isize;
@@ -165,59 +115,39 @@ impl<'a, P> ImageView<'a, P> {
     }
 }
 
+// --- ImageViewMut<P> ---
+
 impl<'a, P> ImageViewMut<'a, P> {
     pub fn new(data: &'a mut [P], width: usize, height: usize, stride: usize) -> Self {
-        assert!(width > 0);
-        assert!(height > 0);
-        assert!(stride >= width);
-        assert!(data.len() >= stride * height);
-
-        Self { width, height, stride, data }
+        Self { grid: Grid2DViewMut::new(data, width, height, stride) }
     }
 
     #[inline]
-    pub fn width(&self) -> usize { self.width }
+    pub fn width(&self) -> usize { self.grid.width() }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height }
+    pub fn height(&self) -> usize { self.grid.height() }
 
     #[inline]
-    pub fn stride(&self) -> usize { self.stride }
+    pub fn stride(&self) -> usize { self.grid.stride() }
 
     #[inline]
-    pub fn data(&self) -> &[P] { self.data }
+    pub fn data(&self) -> &[P] { self.grid.data() }
 
     #[inline]
-    pub fn data_mut(&mut self) -> &mut [P] { self.data }
+    pub fn data_mut(&mut self) -> &mut [P] { self.grid.data_mut() }
 
     #[inline]
-    pub fn index(&self, x: usize, y: usize) -> usize {
-        debug_assert!(x < self.width);
-        debug_assert!(y < self.height);
-        y * self.stride + x
-    }
+    pub fn index(&self, x: usize, y: usize) -> usize { self.grid.index(x, y) }
 
     #[inline]
-    pub fn get(&self, x: usize, y: usize) -> &P {
-        let idx = self.index(x, y);
-        &self.data[idx]
-    }
+    pub fn get(&self, x: usize, y: usize) -> &P { self.grid.get(x, y) }
 
     #[inline]
-    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut P {
-        let idx = self.index(x, y);
-        &mut self.data[idx]
-    }
+    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut P { self.grid.get_mut(x, y) }
 }
 
-impl<P: Clone> Image<P> {
-    pub fn filled(width: usize, height: usize, value: P) -> Self {
-        let stride = width;
-        let data = vec![value; width * height];
-
-        Self::new(width, height, stride, data)
-    }
-}
+// --- Raw pixel conversion (Image-specific) ---
 
 pub trait RawPixel: Copy + 'static {}
 impl RawPixel for u8 {}
@@ -240,21 +170,22 @@ impl<T: RawPixel> Image<Gray<T>> {
             Vec::from_raw_parts(ptr as *mut Gray<T>, len, cap)
         };
 
-        Self { width, height, stride, data: gray_data }
+        Self { grid: Grid2D::new(width, height, stride, gray_data) }
     }
 
     pub fn into_raw(self) -> (usize, usize, usize, Vec<T>) {
-        let width = self.width;
-        let height = self.height;
-        let stride = self.stride;
+        let width = self.grid.width();
+        let height = self.grid.height();
+        let stride = self.grid.stride();
+        let data = self.grid.into_data();
 
         // SAFETY: Gray<T> is repr(transparent), so its layout is identical to T.
         // We're reinterpreting back to the original raw type.
         let raw_data = unsafe {
-            let ptr = self.data.as_ptr() as *const T;
-            let len = self.data.len();
-            let cap = self.data.capacity();
-            std::mem::forget(self.data);
+            let ptr = data.as_ptr() as *const T;
+            let len = data.len();
+            let cap = data.capacity();
+            std::mem::forget(data);
             Vec::from_raw_parts(ptr as *mut T, len, cap)
         };
 
@@ -262,13 +193,15 @@ impl<T: RawPixel> Image<Gray<T>> {
     }
 
     pub fn as_raw(&self) -> &[T] {
+        let data = self.grid.data();
         // SAFETY: Gray<T> is repr(transparent), so a &[Gray<T>] can be safely reinterpreted as &[T].
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, self.data.len()) }
+        unsafe { std::slice::from_raw_parts(data.as_ptr() as *const T, data.len()) }
     }
 
     pub fn as_raw_mut(&mut self) -> &mut [T] {
+        let data = self.grid.data_mut();
         // SAFETY: Gray<T> is repr(transparent), so &mut [Gray<T>] can be safely reinterpreted as &mut [T].
-        unsafe { std::slice::from_raw_parts_mut(self.data.as_mut_ptr() as *mut T, self.data.len()) }
+        unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut T, data.len()) }
     }
 }
 

@@ -1,3 +1,4 @@
+use oxislam_image::Grid2D;
 use oxislam_image::image::{Image, ImageView};
 use oxislam_image::parallel::par_row_collect;
 use oxislam_image::{Gray, gaussian_3x3, sobel};
@@ -47,7 +48,7 @@ impl HarrisDetector {
         sxy: &ImageView<Gray<f32>>,
         x: usize,
         y: usize,
-    ) -> Gray<f32> {
+    ) -> f32 {
         let xx = sxx.get(x, y).value;
         let yy = syy.get(x, y).value;
         let xy = sxy.get(x, y).value;
@@ -55,7 +56,7 @@ impl HarrisDetector {
         let det = xx * yy - xy * xy;
         let trace = xx + yy;
 
-        Gray::new(det - self.k * trace * trace)
+        det - self.k * trace * trace
     }
 
     fn response_map(
@@ -63,13 +64,13 @@ impl HarrisDetector {
         sxx: &ImageView<Gray<f32>>,
         syy: &ImageView<Gray<f32>>,
         sxy: &ImageView<Gray<f32>>,
-    ) -> Image<Gray<f32>> {
+    ) -> Grid2D<f32> {
         let w = sxx.width();
         let h = sxx.height();
 
         let data = par_row_collect(w, h, |x, y| self.response_at(sxx, syy, sxy, x, y));
 
-        Image::new(w, h, w, data)
+        Grid2D::new(w, h, w, data)
     }
 
     fn compute_gradient_tensors(
@@ -94,7 +95,7 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
 
         let (sxx, syy, sxy) = Self::compute_gradient_tensors(image);
         let response = self.response_map(&sxx.view(), &syy.view(), &sxy.view());
-        let max_r = response.view().pixels().map(|p| p.value).fold(f32::NEG_INFINITY, f32::max);
+        let max_r = response.view().iter().fold(f32::NEG_INFINITY, |m, v| m.max(*v));
         let threshold = self.min_threshold.max(self.alpha * max_r);
         let w = response.width();
         let h = response.height();
