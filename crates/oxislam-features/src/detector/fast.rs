@@ -203,6 +203,46 @@ mod tests {
     }
 
     #[test]
+    fn fast_detects_arc_wrapping_around_circle() {
+        // Place a bright pixel at (10,10) on a dark background,
+        // then darken some of the circle positions so the contiguous bright arc
+        // must wrap from index 15 back to index 0 to reach n=9.
+        //
+        // Circle offsets (index → relative position):
+        //   0:( 0,-3)  1:( 1,-3)  2:( 2,-2)  3:( 3,-1)
+        //   4:( 3, 0)  5:( 3, 1)  6:( 2, 2)  7:( 1, 3)
+        //   8:( 0, 3)  9:(-1, 3) 10:(-2, 2) 11:(-3, 1)
+        //  12:(-3, 0) 13:(-3,-1) 14:(-2,-2) 15:(-1,-3)
+        //
+        // We want indices 12..=15 and 0..=4 to be dark (= 9 contiguous),
+        // while indices 5..=11 match the center (= no contrast, break the arc).
+        let center = (10usize, 10usize);
+        let center_val: f32 = 0.5;
+        let dark: f32 = 0.0;
+
+        let mut data = vec![Gray::new(center_val); 20 * 20];
+        data[center.1 * 20 + center.0] = Gray::new(center_val);
+
+        // Make indices 12..=15, 0..=4 dark (contrast from center)
+        for &i in &[12, 13, 14, 15, 0, 1, 2, 3, 4] {
+            let (dx, dy) = CIRCLE_OFFSETS[i];
+            let px = (center.0 as isize + dx) as usize;
+            let py = (center.1 as isize + dy) as usize;
+            data[py * 20 + px] = Gray::new(dark);
+        }
+
+        let img = Image::new(20, 20, 20, data);
+        let detector = FastDetector::default(); // n=9, threshold=0.08
+
+        let keypoints = detector.detect(&img.view());
+        let found = keypoints.iter().any(|kp| {
+            (kp.position.x - 10.0).abs() < f32::EPSILON
+                && (kp.position.y - 10.0).abs() < f32::EPSILON
+        });
+        assert!(found, "wrapping arc at (10,10) should be detected");
+    }
+
+    #[test]
     fn fast_too_small_image() {
         let data = vec![Gray::new(1.0f32); 6 * 6];
         let img = Image::new(6, 6, 6, data);

@@ -8,11 +8,12 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - [x] Image I/O and basic types (Gray, RGB)
 - [x] Filters (Gaussian, Sobel)
 - [x] Harris corner detector
+- [x] FAST corner detector
 - [x] Patch-based descriptor extraction
 - [x] Parallel processing utilities
 
 ### Planned
-- [ ] Additional detectors (FAST, SIFT, ORB)
+- [ ] Additional detectors (SIFT, ORB)
 - [ ] Feature matching
 - [ ] Pose estimation / essential matrix
 - [ ] Bundle adjustment
@@ -25,7 +26,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 
 - **Image Processing**: Filtering (Gaussian, Sobel), pixel types, parallel operations
 - **Geometry**: 2D/3D point and vector types (via nalgebra)
-- **Feature Detection**: Harris corner detector
+- **Feature Detection**: Harris corner detector, FAST corner detector
 - **Feature Description**: Patch descriptors
 
 ## Quick Start
