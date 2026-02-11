@@ -1,8 +1,8 @@
-use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
-use oxislam_image::parallel::{par_flat_map, par_row_collect};
+use oxislam_image::parallel::par_row_collect;
 use oxislam_image::{Gray, gaussian_3x3, sobel};
 
+use super::non_maximum_suppression;
 use crate::keypoint::Keypoint;
 use crate::traits::detector::KeypointDetector;
 
@@ -14,15 +14,15 @@ const MIN_IMAGE_SIZE: usize = 5;
 // Coordinate offset from response image to original: sobel (1) + gaussian (1)
 const COORD_OFFSET: f32 = 2.0;
 
+/// Harris corner detector.
 #[derive(Debug, Clone)]
 pub struct HarrisDetector {
+    /// Sensitivity parameter for the Harris response (det - k * trace^2).
     pub k: f32,
+    /// Fraction of the maximum response used as the detection threshold.
     pub alpha: f32,
+    /// Absolute minimum detection threshold.
     pub min_threshold: f32,
-}
-
-impl HarrisDetector {
-    pub fn new(k: f32, alpha: f32, min_threshold: f32) -> Self { Self { k, alpha, min_threshold } }
 }
 
 impl Default for HarrisDetector {
@@ -32,6 +32,14 @@ impl Default for HarrisDetector {
 }
 
 impl HarrisDetector {
+    /// Create a new Harris detector with the given parameters.
+    pub fn new(k: f32, alpha: f32, min_threshold: f32) -> Self {
+        assert!(k > 0.0, "k must be positive, got {k}");
+        assert!((0.0..=1.0).contains(&alpha), "alpha must be in 0.0..=1.0, got {alpha}");
+        assert!(min_threshold >= 0.0, "min_threshold must be non-negative, got {min_threshold}");
+        Self { k, alpha, min_threshold }
+    }
+
     fn response_at(
         &self,
         sxx: &ImageView<Gray<f32>>,
@@ -63,6 +71,19 @@ impl HarrisDetector {
 
         Image::new(w, h, w, data)
     }
+
+    fn compute_gradient_tensors(
+        image: &ImageView<Gray<f32>>,
+    ) -> (Image<Gray<f32>>, Image<Gray<f32>>, Image<Gray<f32>>) {
+        let (ix, iy) = sobel(image);
+        let ix2 = &ix * &ix;
+        let iy2 = &iy * &iy;
+        let ixiy = &ix * &iy;
+        let sxx = gaussian_3x3(&ix2.view());
+        let syy = gaussian_3x3(&iy2.view());
+        let sxy = gaussian_3x3(&ixiy.view());
+        (sxx, syy, sxy)
+    }
 }
 
 impl KeypointDetector<Gray<f32>> for HarrisDetector {
@@ -71,47 +92,14 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
             return Vec::new();
         }
 
-        let (ix, iy) = sobel(image);
-        let ix2 = &ix * &ix;
-        let iy2 = &iy * &iy;
-        let ixiy = &ix * &iy;
-        let sxx = gaussian_3x3(&ix2.view());
-        let syy = gaussian_3x3(&iy2.view());
-        let sxy = gaussian_3x3(&ixiy.view());
-
+        let (sxx, syy, sxy) = Self::compute_gradient_tensors(image);
         let response = self.response_map(&sxx.view(), &syy.view(), &sxy.view());
         let max_r = response.view().pixels().map(|p| p.value).fold(f32::NEG_INFINITY, f32::max);
         let threshold = self.min_threshold.max(self.alpha * max_r);
-
         let w = response.width();
         let h = response.height();
 
-        let is_local_max = |x: usize, y: usize, r: f32| -> bool {
-            (x == 0 || y == 0 || r > response.get(x - 1, y - 1).value)
-                && (y == 0 || r > response.get(x, y - 1).value)
-                && (x == w - 1 || y == 0 || r > response.get(x + 1, y - 1).value)
-                && (x == 0 || r > response.get(x - 1, y).value)
-                && (x == w - 1 || r > response.get(x + 1, y).value)
-                && (x == 0 || y == h - 1 || r > response.get(x - 1, y + 1).value)
-                && (y == h - 1 || r > response.get(x, y + 1).value)
-                && (x == w - 1 || y == h - 1 || r > response.get(x + 1, y + 1).value)
-        };
-
-        let extract_row = |y: usize| -> Vec<Keypoint> {
-            (0..w)
-                .filter_map(|x| {
-                    let r = response.get(x, y).value;
-                    (r > threshold && is_local_max(x, y, r)).then(|| Keypoint {
-                        position: Point2::new(x as f32 + COORD_OFFSET, y as f32 + COORD_OFFSET),
-                        scale: 1.0,
-                        orientation: None,
-                        response: r,
-                    })
-                })
-                .collect()
-        };
-
-        par_flat_map(0..h, extract_row)
+        non_maximum_suppression(&response, threshold, 0..w, 0..h, COORD_OFFSET)
     }
 }
 
@@ -173,5 +161,16 @@ mod tests {
             });
             assert!(found, "expected a keypoint within 1 pixel of ({ex}, {ey})");
         }
+    }
+
+    #[test]
+    fn harris_too_small_image() {
+        let data = vec![Gray::new(1.0f32); 4 * 4];
+        let img = Image::new(4, 4, 4, data);
+
+        let detector = HarrisDetector::default();
+        let keypoints = detector.detect(&img.view());
+
+        assert!(keypoints.is_empty(), "image smaller than 5x5 should return no keypoints");
     }
 }

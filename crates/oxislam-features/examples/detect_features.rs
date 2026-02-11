@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use oxislam_features::descriptor::patch::PatchExtractor;
+use oxislam_features::detector::fast::FastDetector;
 use oxislam_features::detector::harris::HarrisDetector;
 use oxislam_features::traits::descriptor::DescriptorExtractor;
 use oxislam_features::traits::detector::KeypointDetector;
@@ -22,17 +23,18 @@ struct Args {
     output: Option<PathBuf>,
 
     /// Detector to use
-    #[arg(short, long, default_value = "harris")]
+    #[arg(short, long, default_value = "fast")]
     detector: String,
 }
 
 fn create_detector(name: &str) -> Box<dyn KeypointDetector<Gray<f32>>> {
     match name {
+        "fast" => Box::new(FastDetector::default()),
         "harris" => Box::new(HarrisDetector::default()),
         _ => {
             eprintln!("Error: unknown detector '{name}'");
             eprintln!();
-            eprintln!("Available detectors: harris");
+            eprintln!("Available detectors: fast, harris");
             process::exit(1);
         }
     }
