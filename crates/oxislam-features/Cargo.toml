@@ -12,6 +12,8 @@ rayon = { version = "1.11", optional = true }
 serde = { version = "1.0", optional = true, features = ["derive"] }
 oxislam-geometry = { path = "../oxislam-geometry" }
 oxislam-image = { path = "../oxislam-image" }
+rand = "0.10.0"
+rand_distr = "0.6.0"
 
 [features]
 default = []
