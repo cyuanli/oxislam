@@ -1,0 +1,12 @@
+[package]
+name = "oxislam-viz"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Visualization utilities for oxislam"
+
+[dependencies]
+oxislam-geometry = { path = "../oxislam-geometry" }
+oxislam-image = { path = "../oxislam-image" }

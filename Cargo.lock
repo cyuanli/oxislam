@@ -824,6 +824,7 @@ dependencies = [
  "image",
  "oxislam-geometry",
  "oxislam-image",
+ "oxislam-viz",
  "rand 0.10.0",
  "rand_distr",
  "rayon",
@@ -842,6 +843,14 @@ name = "oxislam-image"
 version = "0.1.0"
 dependencies = [
  "rayon",
+]
+
+[[package]]
+name = "oxislam-viz"
+version = "0.1.0"
+dependencies = [
+ "oxislam-geometry",
+ "oxislam-image",
 ]
 
 [[package]]

@@ -13,6 +13,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - [x] Patch-based descriptor
 - [x] Feature matching (brute-force, ratio test)
 - [x] Parallel processing utilities
+- [x] Visualization (drawing primitives, canvas composition)
 
 ### Planned
 - [ ] Additional detectors (SIFT, ORB)
@@ -30,6 +31,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - **Feature Detection**: Harris corner detector, FAST corner detector
 - **Feature Description**: BRIEF binary descriptors, patch descriptors
 - **Feature Matching**: Brute-force matching with Hamming/L2 distance and ratio test
+- **Visualization**: Drawing primitives (cross markers, lines), canvas utilities (side-by-side composition), color helpers
 
 ## Quick Start
 
@@ -58,3 +60,4 @@ Detects keypoints, extracts descriptors, and matches features between two images
 - **oxislam-image**: Image processing and filtering
 - **oxislam-geometry**: Geometric types
 - **oxislam-features**: Feature detection and description
+- **oxislam-viz**: Visualization utilities (drawing, canvas, colors)

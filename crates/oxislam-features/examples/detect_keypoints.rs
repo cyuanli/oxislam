@@ -7,7 +7,8 @@ use oxislam_features::detector::fast::FastDetector;
 use oxislam_features::detector::harris::HarrisDetector;
 use oxislam_features::traits::detector::KeypointDetector;
 use oxislam_image::image::Image;
-use oxislam_image::{ConvertTo, Gray};
+use oxislam_image::{ConvertTo, Gray, Rgb};
+use oxislam_viz::drawing::draw_cross;
 
 /// Detect keypoints in an image
 #[derive(Parser, Debug)]
@@ -36,6 +37,24 @@ fn create_detector(name: &str) -> Box<dyn KeypointDetector<Gray<f32>>> {
             process::exit(1);
         }
     }
+}
+
+fn rgb_image_to_oxislam(img: &image::RgbImage) -> Image<Rgb<u8>> {
+    let (w, h) = (img.width() as usize, img.height() as usize);
+    let data: Vec<Rgb<u8>> = img.pixels().map(|p| Rgb::new(p[0], p[1], p[2])).collect();
+    Image::new(w, h, w, data)
+}
+
+fn oxislam_to_rgb_image(img: &Image<Rgb<u8>>) -> image::RgbImage {
+    let (w, h) = (img.width(), img.height());
+    let mut out = image::RgbImage::new(w as u32, h as u32);
+    for y in 0..h {
+        for x in 0..w {
+            let p = img.get(x, y);
+            out.put_pixel(x as u32, y as u32, image::Rgb([p.r, p.g, p.b]));
+        }
+    }
+    out
 }
 
 fn main() {
@@ -82,26 +101,16 @@ fn main() {
     println!("Detected {} keypoints in {detect_ms:.1}ms", keypoints.len());
 
     // Visualize keypoints
-    let mut rgb = img.to_rgb8();
-    let green = image::Rgb([0u8, 255, 0]);
-    let arm: i32 = 2;
+    let rgb = img.to_rgb8();
+    let mut canvas = rgb_image_to_oxislam(&rgb);
+    let green = Rgb::new(0, 255, 0);
     for keypoint in &keypoints {
-        let cx = keypoint.position.x.round() as i32;
-        let cy = keypoint.position.y.round() as i32;
-        for d in -arm..=arm {
-            let px = cx + d;
-            let py = cy + d;
-            if px >= 0 && (px as usize) < w && cy >= 0 && (cy as usize) < h {
-                rgb.put_pixel(px as u32, cy as u32, green);
-            }
-            if cx >= 0 && (cx as usize) < w && py >= 0 && (py as usize) < h {
-                rgb.put_pixel(cx as u32, py as u32, green);
-            }
-        }
+        draw_cross(&mut canvas, keypoint.position, green, 2);
     }
 
     // Save output
-    rgb.save(&output_path).unwrap_or_else(|e| {
+    let out = oxislam_to_rgb_image(&canvas);
+    out.save(&output_path).unwrap_or_else(|e| {
         eprintln!("Error: failed to save {}: {e}", output_path.display());
         process::exit(1);
     });

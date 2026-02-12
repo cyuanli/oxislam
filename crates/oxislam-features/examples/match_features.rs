@@ -13,8 +13,12 @@ use oxislam_features::matcher::distance::{Hamming, L2Squared};
 use oxislam_features::traits::descriptor::DescriptorExtractor;
 use oxislam_features::traits::detector::KeypointDetector;
 use oxislam_features::traits::matcher::{DescriptorMatch, DescriptorMatcher};
+use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
-use oxislam_image::{ConvertTo, Gray, gaussian_3x3};
+use oxislam_image::{ConvertTo, Gray, Rgb, gaussian_3x3};
+use oxislam_viz::canvas::side_by_side;
+use oxislam_viz::color::distinct_color;
+use oxislam_viz::drawing::{draw_cross, draw_line};
 
 /// Match features between two images
 #[derive(Parser, Debug)]
@@ -38,6 +42,24 @@ struct Args {
     /// Descriptor to use: brief128, brief256, brief512, patch
     #[arg(short = 'x', long, default_value = "brief256")]
     descriptor: String,
+}
+
+fn rgb_image_to_oxislam(img: &image::RgbImage) -> Image<Rgb<u8>> {
+    let (w, h) = (img.width() as usize, img.height() as usize);
+    let data: Vec<Rgb<u8>> = img.pixels().map(|p| Rgb::new(p[0], p[1], p[2])).collect();
+    Image::new(w, h, w, data)
+}
+
+fn oxislam_to_rgb_image(img: &Image<Rgb<u8>>) -> image::RgbImage {
+    let (w, h) = (img.width(), img.height());
+    let mut out = image::RgbImage::new(w as u32, h as u32);
+    for y in 0..h {
+        for x in 0..w {
+            let p = img.get(x, y);
+            out.put_pixel(x as u32, y as u32, image::Rgb([p.r, p.g, p.b]));
+        }
+    }
+    out
 }
 
 fn load_gray(path: &PathBuf) -> (image::RgbImage, Image<Gray<f32>>) {
@@ -170,70 +192,6 @@ fn patch_pipeline(
     }
 }
 
-fn draw_cross(img: &mut image::RgbImage, cx: i32, cy: i32, color: image::Rgb<u8>) {
-    let (w, h) = (img.width() as i32, img.height() as i32);
-    let arm = 2;
-    for d in -arm..=arm {
-        let px = cx + d;
-        let py = cy + d;
-        if px >= 0 && px < w && cy >= 0 && cy < h {
-            img.put_pixel(px as u32, cy as u32, color);
-        }
-        if cx >= 0 && cx < w && py >= 0 && py < h {
-            img.put_pixel(cx as u32, py as u32, color);
-        }
-    }
-}
-
-fn draw_line(img: &mut image::RgbImage, x0: i32, y0: i32, x1: i32, y1: i32, color: image::Rgb<u8>) {
-    let (w, h) = (img.width() as i32, img.height() as i32);
-    let dx = (x1 - x0).abs();
-    let dy = -(y1 - y0).abs();
-    let sx = if x0 < x1 { 1 } else { -1 };
-    let sy = if y0 < y1 { 1 } else { -1 };
-    let mut err = dx + dy;
-    let mut x = x0;
-    let mut y = y0;
-    loop {
-        if x >= 0 && x < w && y >= 0 && y < h {
-            img.put_pixel(x as u32, y as u32, color);
-        }
-        if x == x1 && y == y1 {
-            break;
-        }
-        let e2 = 2 * err;
-        if e2 >= dy {
-            err += dy;
-            x += sx;
-        }
-        if e2 <= dx {
-            err += dx;
-            y += sy;
-        }
-    }
-}
-
-fn match_color(index: usize) -> image::Rgb<u8> {
-    let hue = ((index as f32) * 137.508) % 360.0; // golden angle
-    let (r, g, b) = hue_to_rgb(hue);
-    image::Rgb([r, g, b])
-}
-
-fn hue_to_rgb(hue: f32) -> (u8, u8, u8) {
-    let h = hue / 60.0;
-    let x = (1.0 - (h % 2.0 - 1.0).abs()) * 255.0;
-    let c = 255.0;
-    let (r, g, b) = match h as u32 {
-        0 => (c, x, 0.0),
-        1 => (x, c, 0.0),
-        2 => (0.0, c, x),
-        3 => (0.0, x, c),
-        4 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    (r as u8, g as u8, b as u8)
-}
-
 fn main() {
     let args = Args::parse();
     let output_path = args.output.unwrap_or_else(|| {
@@ -259,49 +217,31 @@ fn main() {
     let result = describe_and_match(&args.descriptor, &gray1.view(), &gray2.view(), kps1, kps2);
 
     // Create side-by-side visualization
-    let out_w = w1 + w2;
-    let out_h = h1.max(h2);
-    let mut canvas = image::RgbImage::new(out_w, out_h);
-
-    // Copy images
-    for y in 0..h1 {
-        for x in 0..w1 {
-            canvas.put_pixel(x, y, *rgb1.get_pixel(x, y));
-        }
-    }
-    for y in 0..h2 {
-        for x in 0..w2 {
-            canvas.put_pixel(w1 + x, y, *rgb2.get_pixel(x, y));
-        }
-    }
+    let ox_rgb1 = rgb_image_to_oxislam(&rgb1);
+    let ox_rgb2 = rgb_image_to_oxislam(&rgb2);
+    let mut canvas = side_by_side(&ox_rgb1.view(), &ox_rgb2.view());
 
     // Draw keypoints
-    let green = image::Rgb([0u8, 255, 0]);
+    let green = Rgb::new(0, 255, 0);
     for kp in &result.keypoints1 {
-        draw_cross(&mut canvas, kp.position.x.round() as i32, kp.position.y.round() as i32, green);
+        draw_cross(&mut canvas, kp.position, green, 2);
     }
     for kp in &result.keypoints2 {
-        draw_cross(
-            &mut canvas,
-            kp.position.x.round() as i32 + w1 as i32,
-            kp.position.y.round() as i32,
-            green,
-        );
+        let shifted = Point2::new(kp.position.x + w1 as f32, kp.position.y);
+        draw_cross(&mut canvas, shifted, green, 2);
     }
 
     // Draw match lines
     for (i, m) in result.matches.iter().enumerate() {
-        let p1 = &result.keypoints1[m.source_idx].position;
-        let p2 = &result.keypoints2[m.reference_idx].position;
-        let x0 = p1.x.round() as i32;
-        let y0 = p1.y.round() as i32;
-        let x1 = p2.x.round() as i32 + w1 as i32;
-        let y1 = p2.y.round() as i32;
-        draw_line(&mut canvas, x0, y0, x1, y1, match_color(i));
+        let p1 = result.keypoints1[m.source_idx].position;
+        let p2 = result.keypoints2[m.reference_idx].position;
+        let p2_shifted = Point2::new(p2.x + w1 as f32, p2.y);
+        draw_line(&mut canvas, p1, p2_shifted, distinct_color(i));
     }
 
     // Save output
-    canvas.save(&output_path).unwrap_or_else(|e| {
+    let out = oxislam_to_rgb_image(&canvas);
+    out.save(&output_path).unwrap_or_else(|e| {
         eprintln!("Error: failed to save {}: {e}", output_path.display());
         process::exit(1);
     });
