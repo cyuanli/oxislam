@@ -3,23 +3,21 @@ use std::process;
 use std::time::Instant;
 
 use clap::Parser;
-use oxislam_features::descriptor::patch::PatchExtractor;
 use oxislam_features::detector::fast::FastDetector;
 use oxislam_features::detector::harris::HarrisDetector;
-use oxislam_features::traits::descriptor::DescriptorExtractor;
 use oxislam_features::traits::detector::KeypointDetector;
 use oxislam_image::image::Image;
 use oxislam_image::{ConvertTo, Gray};
 
-/// Detect features in an image
+/// Detect keypoints in an image
 #[derive(Parser, Debug)]
-#[command(name = "detect_features")]
-#[command(about = "Feature detection example", long_about = None)]
+#[command(name = "detect_keypoints")]
+#[command(about = "Keypoint detection example", long_about = None)]
 struct Args {
     /// Path to input image
     input: PathBuf,
 
-    /// Path to output image (defaults to <input>_features.<ext>)
+    /// Path to output image (defaults to <input>_keypoints.<ext>)
     output: Option<PathBuf>,
 
     /// Detector to use
@@ -58,7 +56,7 @@ fn main() {
             .extension()
             .map(|e| e.to_string_lossy().into_owned())
             .unwrap_or_else(|| "png".to_owned());
-        args.input.with_file_name(format!("{stem}_features.{ext}"))
+        args.input.with_file_name(format!("{stem}_keypoints.{ext}"))
     });
 
     // Load image
@@ -83,25 +81,13 @@ fn main() {
     let detect_ms = t0.elapsed().as_secs_f64() * 1000.0;
     println!("Detected {} keypoints in {detect_ms:.1}ms", keypoints.len());
 
-    // Extract descriptors
-    let extractor = PatchExtractor::<7, 49>::default();
-    let kp_count = keypoints.len();
-    let t1 = Instant::now();
-    let features = extractor.describe(&gray_f32.view(), keypoints);
-    let desc_ms = t1.elapsed().as_secs_f64() * 1000.0;
-    let discarded = kp_count - features.len();
-    println!(
-        "Extracted {} descriptors in {desc_ms:.1}ms ({discarded} near-border keypoints discarded)",
-        features.len()
-    );
-
     // Visualize keypoints
     let mut rgb = img.to_rgb8();
     let green = image::Rgb([0u8, 255, 0]);
     let arm: i32 = 2;
-    for feat in &features {
-        let cx = feat.keypoint.position.x.round() as i32;
-        let cy = feat.keypoint.position.y.round() as i32;
+    for keypoint in &keypoints {
+        let cx = keypoint.position.x.round() as i32;
+        let cy = keypoint.position.y.round() as i32;
         for d in -arm..=arm {
             let px = cx + d;
             let py = cy + d;
