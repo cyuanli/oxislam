@@ -1,4 +1,6 @@
 mod convert;
+#[cfg(feature = "image")]
+mod interop;
 mod ops;
 mod types;
 

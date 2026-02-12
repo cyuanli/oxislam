@@ -1,6 +1,8 @@
 //! Image processing utilities.
 //!
 //! Provides image types, filtering operations, pixel formats, and parallel processing utilities.
+//!
+//! Enable the `image` feature for `From`/`Into` conversions with the [`image`] crate.
 
 pub mod filter;
 pub mod grid;

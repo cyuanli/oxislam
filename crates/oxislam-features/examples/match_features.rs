@@ -44,24 +44,6 @@ struct Args {
     descriptor: String,
 }
 
-fn rgb_image_to_oxislam(img: &image::RgbImage) -> Image<Rgb<u8>> {
-    let (w, h) = (img.width() as usize, img.height() as usize);
-    let data: Vec<Rgb<u8>> = img.pixels().map(|p| Rgb::new(p[0], p[1], p[2])).collect();
-    Image::new(w, h, w, data)
-}
-
-fn oxislam_to_rgb_image(img: &Image<Rgb<u8>>) -> image::RgbImage {
-    let (w, h) = (img.width(), img.height());
-    let mut out = image::RgbImage::new(w as u32, h as u32);
-    for y in 0..h {
-        for x in 0..w {
-            let p = img.get(x, y);
-            out.put_pixel(x as u32, y as u32, image::Rgb([p.r, p.g, p.b]));
-        }
-    }
-    out
-}
-
 fn load_gray(path: &PathBuf) -> (image::RgbImage, Image<Gray<f32>>) {
     let img = image::open(path).unwrap_or_else(|e| {
         eprintln!("Error: failed to open {}: {e}", path.display());
@@ -69,8 +51,7 @@ fn load_gray(path: &PathBuf) -> (image::RgbImage, Image<Gray<f32>>) {
     });
     let rgb = img.to_rgb8();
     let luma = img.to_luma8();
-    let (w, h) = (luma.width() as usize, luma.height() as usize);
-    let gray_u8: Image<Gray<u8>> = Image::from_raw(w, h, w, luma.into_raw());
+    let gray_u8: Image<Gray<u8>> = luma.into();
     let gray_f32: Image<Gray<f32>> = gray_u8.view().to();
     (rgb, gray_f32)
 }
@@ -217,8 +198,8 @@ fn main() {
     let result = describe_and_match(&args.descriptor, &gray1.view(), &gray2.view(), kps1, kps2);
 
     // Create side-by-side visualization
-    let ox_rgb1 = rgb_image_to_oxislam(&rgb1);
-    let ox_rgb2 = rgb_image_to_oxislam(&rgb2);
+    let ox_rgb1: Image<Rgb<u8>> = rgb1.into();
+    let ox_rgb2: Image<Rgb<u8>> = rgb2.into();
     let mut canvas = side_by_side(&ox_rgb1.view(), &ox_rgb2.view());
 
     // Draw keypoints
@@ -240,7 +221,7 @@ fn main() {
     }
 
     // Save output
-    let out = oxislam_to_rgb_image(&canvas);
+    let out: image::RgbImage = (&canvas).into();
     out.save(&output_path).unwrap_or_else(|e| {
         eprintln!("Error: failed to save {}: {e}", output_path.display());
         process::exit(1);

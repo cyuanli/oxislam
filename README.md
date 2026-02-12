@@ -26,7 +26,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 
 ## Features
 
-- **Image Processing**: Filtering (Gaussian, Sobel), pixel types, parallel operations
+- **Image Processing**: Filtering (Gaussian, Sobel), pixel types, parallel operations, [`image`](https://crates.io/crates/image) crate interop (behind `image` feature)
 - **Geometry**: 2D/3D point and vector types (via nalgebra)
 - **Feature Detection**: Harris corner detector, FAST corner detector
 - **Feature Description**: BRIEF binary descriptors, patch descriptors
@@ -57,7 +57,7 @@ Detects keypoints, extracts descriptors, and matches features between two images
 
 ## Crates
 
-- **oxislam-image**: Image processing and filtering
+- **oxislam-image**: Image processing and filtering (interop with the `image` crate behind the `image` feature)
 - **oxislam-geometry**: Geometric types
 - **oxislam-features**: Feature detection and description
 - **oxislam-viz**: Visualization utilities (drawing, canvas, colors)

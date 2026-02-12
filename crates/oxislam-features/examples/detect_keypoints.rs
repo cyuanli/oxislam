@@ -39,24 +39,6 @@ fn create_detector(name: &str) -> Box<dyn KeypointDetector<Gray<f32>>> {
     }
 }
 
-fn rgb_image_to_oxislam(img: &image::RgbImage) -> Image<Rgb<u8>> {
-    let (w, h) = (img.width() as usize, img.height() as usize);
-    let data: Vec<Rgb<u8>> = img.pixels().map(|p| Rgb::new(p[0], p[1], p[2])).collect();
-    Image::new(w, h, w, data)
-}
-
-fn oxislam_to_rgb_image(img: &Image<Rgb<u8>>) -> image::RgbImage {
-    let (w, h) = (img.width(), img.height());
-    let mut out = image::RgbImage::new(w as u32, h as u32);
-    for y in 0..h {
-        for x in 0..w {
-            let p = img.get(x, y);
-            out.put_pixel(x as u32, y as u32, image::Rgb([p.r, p.g, p.b]));
-        }
-    }
-    out
-}
-
 fn main() {
     let args = Args::parse();
 
@@ -88,8 +70,7 @@ fn main() {
 
     // Convert to Gray<f32>
     let luma = img.to_luma8();
-    let raw = luma.into_raw();
-    let gray_u8: Image<Gray<u8>> = Image::from_raw(w, h, w, raw);
+    let gray_u8: Image<Gray<u8>> = luma.into();
     let gray_f32: Image<Gray<f32>> = gray_u8.view().to();
 
     // Detect keypoints
@@ -102,14 +83,14 @@ fn main() {
 
     // Visualize keypoints
     let rgb = img.to_rgb8();
-    let mut canvas = rgb_image_to_oxislam(&rgb);
+    let mut canvas: Image<Rgb<u8>> = rgb.into();
     let green = Rgb::new(0, 255, 0);
     for keypoint in &keypoints {
         draw_cross(&mut canvas, keypoint.position, green, 2);
     }
 
     // Save output
-    let out = oxislam_to_rgb_image(&canvas);
+    let out: image::RgbImage = (&canvas).into();
     out.save(&output_path).unwrap_or_else(|e| {
         eprintln!("Error: failed to save {}: {e}", output_path.display());
         process::exit(1);
