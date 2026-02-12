@@ -11,11 +11,11 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - [x] FAST corner detector
 - [x] BRIEF binary descriptor
 - [x] Patch-based descriptor
+- [x] Feature matching (brute-force, ratio test)
 - [x] Parallel processing utilities
 
 ### Planned
 - [ ] Additional detectors (SIFT, ORB)
-- [ ] Feature matching
 - [ ] Pose estimation / essential matrix
 - [ ] Bundle adjustment
 - [ ] Map/keyframe management
@@ -29,6 +29,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - **Geometry**: 2D/3D point and vector types (via nalgebra)
 - **Feature Detection**: Harris corner detector, FAST corner detector
 - **Feature Description**: BRIEF binary descriptors, patch descriptors
+- **Feature Matching**: Brute-force matching with Hamming/L2 distance and ratio test
 
 ## Quick Start
 

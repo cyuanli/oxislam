@@ -1,6 +1,6 @@
-//! Feature detection and description.
+//! Feature detection, description, and matching.
 //!
-//! Provides keypoint detectors (Harris, etc.) and feature descriptors (patch-based, etc.).
+//! Provides keypoint detectors, feature descriptors, and descriptor matchers.
 //!
 //! # Example
 //!
@@ -20,3 +20,4 @@ pub mod traits;
 
 pub mod descriptor;
 pub mod detector;
+pub mod matcher;

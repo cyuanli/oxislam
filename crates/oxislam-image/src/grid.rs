@@ -163,7 +163,6 @@ impl<'a, T> Grid2DView<'a, T> {
             &self.data[start..start + self.width]
         })
     }
-
 }
 
 impl<'a, T> Grid2DViewMut<'a, T> {

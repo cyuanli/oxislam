@@ -2,7 +2,7 @@ use oxislam_image::Gray;
 use oxislam_image::image::ImageView;
 
 use crate::keypoint::Keypoint;
-use crate::traits::descriptor::DescriptorExtractor;
+use crate::traits::descriptor::{DescriptorExtractor, FloatDescriptor};
 
 #[derive(Debug, Clone)]
 pub struct PatchExtractor<const N: usize, const L: usize> {
@@ -17,12 +17,6 @@ impl<const N: usize, const L: usize> PatchExtractor<N, L> {
         assert!(L == N * N, "L must equal N * N");
         Self { normalize }
     }
-
-    #[inline]
-    pub const fn patch_size(&self) -> usize { N }
-
-    #[inline]
-    pub const fn descriptor_length(&self) -> usize { L }
 
     #[inline]
     fn build<P, F>(&self, view: ImageView<P>, to_f32: F) -> PatchDescriptor<L>
@@ -71,6 +65,11 @@ pub struct PatchDescriptor<const L: usize> {
 impl<const L: usize> PatchDescriptor<L> {
     #[inline]
     pub fn new(data: [f32; L]) -> Self { Self { data } }
+}
+
+impl<const L: usize> FloatDescriptor for PatchDescriptor<L> {
+    #[inline]
+    fn values(&self) -> &[f32] { &self.data }
 }
 
 impl<const N: usize, const L: usize> DescriptorExtractor<Gray<f32>, PatchDescriptor<L>>

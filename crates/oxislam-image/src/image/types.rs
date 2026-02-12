@@ -226,5 +226,4 @@ mod tests {
 
         assert_eq!(raw, data);
     }
-
 }

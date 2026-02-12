@@ -1,7 +1,6 @@
-use oxislam_image::Grid2D;
 use oxislam_image::image::ImageView;
 use oxislam_image::parallel::par_row_collect;
-use oxislam_image::Gray;
+use oxislam_image::{Gray, Grid2D};
 
 use super::non_maximum_suppression;
 use crate::keypoint::Keypoint;

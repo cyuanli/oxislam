@@ -1,11 +1,11 @@
 use oxislam_image::Gray;
 use oxislam_image::image::ImageView;
-use rand::rngs::SmallRng;
 use rand::SeedableRng;
+use rand::rngs::SmallRng;
 use rand_distr::{Distribution, Normal};
 
 use crate::keypoint::Keypoint;
-use crate::traits::descriptor::DescriptorExtractor;
+use crate::traits::descriptor::{BinaryDescriptor, DescriptorExtractor};
 
 const DEFAULT_PATCH_SIZE: usize = 49;
 const DEFAULT_SEED: u64 = 0xB21EF;
@@ -35,10 +35,7 @@ impl<const L: usize> BriefExtractor<L> {
     pub fn new(patch_size: usize, seed: u64) -> Self {
         assert!(patch_size >= 3, "Patch size must be at least 3");
         assert!(patch_size % 2 == 1, "Patch size must be odd");
-        Self {
-            patch_size,
-            binary_tests: Self::sample_binary_tests(patch_size, seed),
-        }
+        Self { patch_size, binary_tests: Self::sample_binary_tests(patch_size, seed) }
     }
 
     #[inline]
@@ -97,6 +94,11 @@ pub struct BriefDescriptor<const L: usize> {
 impl<const L: usize> BriefDescriptor<L> {
     #[inline]
     pub fn new(data: [u64; L]) -> Self { Self { data } }
+}
+
+impl<const L: usize> BinaryDescriptor for BriefDescriptor<L> {
+    #[inline]
+    fn bits(&self) -> &[u64] { &self.data }
 }
 
 impl<const L: usize> DescriptorExtractor<Gray<f32>, BriefDescriptor<L>> for BriefExtractor<L> {

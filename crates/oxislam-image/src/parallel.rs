@@ -64,13 +64,17 @@ where
     }
 }
 
-/// Filter-map over a Vec, parallelizing when rayon is enabled.
-pub fn par_filter_map<T: MaybeSend, U: MaybeSend, F>(items: Vec<T>, f: F) -> Vec<U>
+/// Filter-map over an iterator, parallelizing when rayon is enabled.
+pub fn par_filter_map<I, T, U, F>(items: I, f: F) -> Vec<U>
 where
+    I: IntoIterator<Item = T>,
+    T: MaybeSend,
+    U: MaybeSend,
     F: Fn(T) -> Option<U> + MaybeSync,
 {
     #[cfg(feature = "rayon")]
     {
+        let items: Vec<T> = items.into_iter().collect();
         let f = &f;
         items.into_par_iter().filter_map(|item| f(item)).collect()
     }
