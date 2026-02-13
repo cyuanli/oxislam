@@ -2,21 +2,17 @@
 //!
 //! Requires the `image` feature.
 
-use crate::pixel::{Gray, Rgb};
 use crate::image::Image;
+use crate::pixel::{Gray, Rgb};
 
 // --- Pixel-level conversions ---
 
 impl From<image::Rgb<u8>> for Rgb<u8> {
-    fn from(p: image::Rgb<u8>) -> Self {
-        Rgb::new(p[0], p[1], p[2])
-    }
+    fn from(p: image::Rgb<u8>) -> Self { Rgb::new(p[0], p[1], p[2]) }
 }
 
 impl From<Rgb<u8>> for image::Rgb<u8> {
-    fn from(p: Rgb<u8>) -> Self {
-        image::Rgb([p.r, p.g, p.b])
-    }
+    fn from(p: Rgb<u8>) -> Self { image::Rgb([p.r, p.g, p.b]) }
 }
 
 // --- Image-level conversions ---
@@ -47,10 +43,7 @@ impl From<&Image<Rgb<u8>>> for image::RgbImage {
             // Contiguous: single memcpy via as_bytes reinterpret.
             // SAFETY: Rgb<u8> is #[repr(C)] {r,g,b} — size 3, align 1, no padding.
             let bytes: &[u8] = unsafe {
-                std::slice::from_raw_parts(
-                    img.data().as_ptr() as *const u8,
-                    img.data().len() * 3,
-                )
+                std::slice::from_raw_parts(img.data().as_ptr() as *const u8, img.data().len() * 3)
             };
             image::RgbImage::from_raw(w as u32, h as u32, bytes.to_vec())
                 .expect("buffer size matches dimensions")
@@ -58,9 +51,8 @@ impl From<&Image<Rgb<u8>>> for image::RgbImage {
             let mut buf = Vec::with_capacity(w * h * 3);
             for row in img.view().rows() {
                 // SAFETY: same repr(C) layout reasoning as above.
-                let row_bytes: &[u8] = unsafe {
-                    std::slice::from_raw_parts(row.as_ptr() as *const u8, row.len() * 3)
-                };
+                let row_bytes: &[u8] =
+                    unsafe { std::slice::from_raw_parts(row.as_ptr() as *const u8, row.len() * 3) };
                 buf.extend_from_slice(row_bytes);
             }
             image::RgbImage::from_raw(w as u32, h as u32, buf)

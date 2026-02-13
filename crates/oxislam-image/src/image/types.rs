@@ -99,6 +99,14 @@ impl<'a, P> ImageView<'a, P> {
 
     pub fn rows(&self) -> impl Iterator<Item = &[P]> { self.grid.rows() }
 
+    /// Copy the view into an owned [`Image`].
+    pub fn to_owned(&self) -> Image<P>
+    where
+        P: Copy,
+    {
+        Image { grid: self.grid.to_owned() }
+    }
+
     pub fn patch(&self, cx: f32, cy: f32, size: usize) -> Option<ImageView<'a, P>> {
         let half = (size / 2) as isize;
         let cx = cx.round() as isize;

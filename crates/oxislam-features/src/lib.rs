@@ -15,6 +15,8 @@
 
 pub mod feature;
 pub mod keypoint;
+pub mod orientation;
+pub mod pyramid;
 
 pub mod traits;
 

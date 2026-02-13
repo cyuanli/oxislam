@@ -163,6 +163,21 @@ impl<'a, T> Grid2DView<'a, T> {
             &self.data[start..start + self.width]
         })
     }
+
+    /// Copy the view into an owned [`Grid2D`].
+    pub fn to_owned(&self) -> Grid2D<T>
+    where
+        T: Copy,
+    {
+        if self.stride == self.width {
+            let len = self.stride * self.height;
+            let data = self.data[..len].to_vec();
+            Grid2D::new(self.width, self.height, self.width, data)
+        } else {
+            let data: Vec<T> = self.rows().flat_map(|row| row.iter().copied()).collect();
+            Grid2D::new(self.width, self.height, self.width, data)
+        }
+    }
 }
 
 impl<'a, T> Grid2DViewMut<'a, T> {

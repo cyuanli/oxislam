@@ -9,14 +9,16 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 - [x] Filters (Gaussian, Sobel)
 - [x] Harris corner detector
 - [x] FAST corner detector
-- [x] BRIEF binary descriptor
+- [x] ORB detector (multi-scale FAST + orientation)
+- [x] Image pyramid
+- [x] BRIEF binary descriptor (rotation-aware)
 - [x] Patch-based descriptor
 - [x] Feature matching (brute-force, ratio test)
 - [x] Parallel processing utilities
 - [x] Visualization (drawing primitives, canvas composition)
 
 ### Planned
-- [ ] Additional detectors (SIFT, ORB)
+- [ ] Additional detectors (SIFT)
 - [ ] Pose estimation / essential matrix
 - [ ] Bundle adjustment
 - [ ] Map/keyframe management
@@ -26,9 +28,9 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 
 ## Features
 
-- **Image Processing**: Filtering (Gaussian, Sobel), pixel types, parallel operations, [`image`](https://crates.io/crates/image) crate interop (behind `image` feature)
+- **Image Processing**: Filtering (Gaussian, Sobel), bilinear resize, image pyramids, pixel types, parallel operations, [`image`](https://crates.io/crates/image) crate interop (behind `image` feature)
 - **Geometry**: 2D/3D point and vector types (via nalgebra)
-- **Feature Detection**: Harris corner detector, FAST corner detector
+- **Feature Detection**: Harris corner detector, FAST corner detector, ORB detector
 - **Feature Description**: BRIEF binary descriptors, patch descriptors
 - **Feature Matching**: Brute-force matching with Hamming/L2 distance and ratio test
 - **Visualization**: Drawing primitives (cross markers, lines), canvas utilities (side-by-side composition), color helpers

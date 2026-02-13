@@ -36,10 +36,11 @@ mod tests {
         let img = Image::new(4, 3, 4, data);
 
         let (ix, iy) = sobel(&img.view());
-        // Output is 2x1
-        assert_eq!(ix.width(), 2);
-        assert_eq!(ix.height(), 1);
-        assert_eq!(ix.get(0, 0).value, 4.0); // strong horizontal gradient
-        assert_eq!(iy.get(0, 0).value, 0.0); // no vertical gradient
+        // Same dimensions as input.
+        assert_eq!(ix.width(), 4);
+        assert_eq!(ix.height(), 3);
+        // Center pixel (1,1) has strong horizontal gradient, no vertical.
+        assert_eq!(ix.get(1, 1).value, 4.0);
+        assert_eq!(iy.get(1, 1).value, 0.0);
     }
 }

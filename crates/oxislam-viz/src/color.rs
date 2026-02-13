@@ -24,9 +24,5 @@ pub fn hsv_to_rgb(h: f32, s: f32, v: f32) -> Rgb<u8> {
         _ => (c, 0.0, x),
     };
     let m = v - c;
-    Rgb::new(
-        ((r1 + m) * 255.0) as u8,
-        ((g1 + m) * 255.0) as u8,
-        ((b1 + m) * 255.0) as u8,
-    )
+    Rgb::new(((r1 + m) * 255.0) as u8, ((g1 + m) * 255.0) as u8, ((b1 + m) * 255.0) as u8)
 }

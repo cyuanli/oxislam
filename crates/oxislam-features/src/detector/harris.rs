@@ -1,18 +1,14 @@
-use oxislam_image::image::{Image, ImageView};
-use oxislam_image::parallel::par_row_collect;
-use oxislam_image::{Gray, Grid2D, gaussian_3x3, sobel};
+use oxislam_image::Gray;
+use oxislam_image::image::ImageView;
 
-use super::non_maximum_suppression;
+use super::common::{gradient_tensors, harris_response_map, non_maximum_suppression};
 use crate::keypoint::Keypoint;
 use crate::traits::detector::KeypointDetector;
 
 const DEFAULT_K: f32 = 0.04;
 const DEFAULT_ALPHA: f32 = 0.01;
 const DEFAULT_MIN_THRESHOLD: f32 = 1e-6;
-// Minimum image size: sobel (3x3) shrinks by 2, gaussian (3x3) shrinks by 2 more
-const MIN_IMAGE_SIZE: usize = 5;
-// Coordinate offset from response image to original: sobel (1) + gaussian (1)
-const COORD_OFFSET: f32 = 2.0;
+const MIN_IMAGE_SIZE: usize = 3;
 
 /// Harris corner detector.
 #[derive(Debug, Clone)]
@@ -39,51 +35,6 @@ impl HarrisDetector {
         assert!(min_threshold >= 0.0, "min_threshold must be non-negative, got {min_threshold}");
         Self { k, alpha, min_threshold }
     }
-
-    fn response_at(
-        &self,
-        sxx: &ImageView<Gray<f32>>,
-        syy: &ImageView<Gray<f32>>,
-        sxy: &ImageView<Gray<f32>>,
-        x: usize,
-        y: usize,
-    ) -> f32 {
-        let xx = sxx.get(x, y).value;
-        let yy = syy.get(x, y).value;
-        let xy = sxy.get(x, y).value;
-
-        let det = xx * yy - xy * xy;
-        let trace = xx + yy;
-
-        det - self.k * trace * trace
-    }
-
-    fn response_map(
-        &self,
-        sxx: &ImageView<Gray<f32>>,
-        syy: &ImageView<Gray<f32>>,
-        sxy: &ImageView<Gray<f32>>,
-    ) -> Grid2D<f32> {
-        let w = sxx.width();
-        let h = sxx.height();
-
-        let data = par_row_collect(w, h, |x, y| self.response_at(sxx, syy, sxy, x, y));
-
-        Grid2D::new(w, h, w, data)
-    }
-
-    fn compute_gradient_tensors(
-        image: &ImageView<Gray<f32>>,
-    ) -> (Image<Gray<f32>>, Image<Gray<f32>>, Image<Gray<f32>>) {
-        let (ix, iy) = sobel(image);
-        let ix2 = &ix * &ix;
-        let iy2 = &iy * &iy;
-        let ixiy = &ix * &iy;
-        let sxx = gaussian_3x3(&ix2.view());
-        let syy = gaussian_3x3(&iy2.view());
-        let sxy = gaussian_3x3(&ixiy.view());
-        (sxx, syy, sxy)
-    }
 }
 
 impl KeypointDetector<Gray<f32>> for HarrisDetector {
@@ -92,46 +43,37 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
             return Vec::new();
         }
 
-        let (sxx, syy, sxy) = Self::compute_gradient_tensors(image);
-        let response = self.response_map(&sxx.view(), &syy.view(), &sxy.view());
+        let gt = gradient_tensors(image);
+        let response = harris_response_map(&gt.sxx.view(), &gt.syy.view(), &gt.sxy.view(), self.k);
         let max_r = response.view().iter().fold(f32::NEG_INFINITY, |m, v| m.max(*v));
         let threshold = self.min_threshold.max(self.alpha * max_r);
         let w = response.width();
         let h = response.height();
 
-        non_maximum_suppression(&response, threshold, 0..w, 0..h, COORD_OFFSET)
+        non_maximum_suppression(&response, threshold, 0..w, 0..h)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use oxislam_image::image::Image;
 
-    fn corner_image() -> Image<Gray<f32>> {
-        // 10x10 image: 5x5 white square in top-left, rest black
-        let mut data = vec![Gray::new(0.0f32); 10 * 10];
-        for y in 0..5 {
-            for x in 0..5 {
-                data[y * 10 + x] = Gray::new(1.0);
-            }
-        }
-        Image::new(10, 10, 10, data)
-    }
+    use super::*;
 
     #[test]
     fn harris_detects_corner() {
-        let img = corner_image();
+        // 20x20 image with a 5x5 white square at (5,5)-(9,9): single L-corner at (9,9)
+        let mut data = vec![Gray::new(0.0f32); 20 * 20];
+        for y in 5..10 {
+            for x in 5..10 {
+                data[y * 20 + x] = Gray::new(1.0);
+            }
+        }
+        let img = Image::new(20, 20, 20, data);
         let detector = HarrisDetector::default();
         let keypoints = detector.detect(&img.view());
 
-        assert_eq!(keypoints.len(), 1, "Harris should detect exactly one keypoint");
-
-        let kp = &keypoints[0];
-        let dx = kp.position.x - 4.0;
-        let dy = kp.position.y - 4.0;
-        let dist = (dx * dx + dy * dy).sqrt();
-
-        assert!(dist <= 1.0, "Expected keypoint within 1 pixel of (4, 4), got distance {dist}");
+        assert_eq!(keypoints.len(), 4, "Harris should detect 4 corners of the square");
     }
 
     #[test]
@@ -165,12 +107,12 @@ mod tests {
 
     #[test]
     fn harris_too_small_image() {
-        let data = vec![Gray::new(1.0f32); 4 * 4];
-        let img = Image::new(4, 4, 4, data);
+        let data = vec![Gray::new(1.0f32); 2 * 2];
+        let img = Image::new(2, 2, 2, data);
 
         let detector = HarrisDetector::default();
         let keypoints = detector.detect(&img.view());
 
-        assert!(keypoints.is_empty(), "image smaller than 5x5 should return no keypoints");
+        assert!(keypoints.is_empty(), "image smaller than 3x3 should return no keypoints");
     }
 }

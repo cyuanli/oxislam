@@ -7,18 +7,32 @@ pub type Kernel<const N: usize> = [[f32; N]; N];
 fn compute_pixel<const N: usize>(
     image: &ImageView<Gray<f32>>,
     kernel: &Kernel<N>,
-    x: usize,
-    y: usize,
+    cx: usize,
+    cy: usize,
 ) -> Gray<f32> {
+    let half = (N / 2) as isize;
+    let w = image.width();
+    let h = image.height();
     let mut sum = 0.0;
     for (ky, kernel_row) in kernel.iter().enumerate() {
+        let iy = cy as isize + ky as isize - half;
+        if iy < 0 || iy >= h as isize {
+            continue;
+        }
         for (kx, kernel_val) in kernel_row.iter().enumerate() {
-            sum += image.get(x + kx, y + ky).value * kernel_val;
+            let ix = cx as isize + kx as isize - half;
+            if ix < 0 || ix >= w as isize {
+                continue;
+            }
+            sum += image.get(ix as usize, iy as usize).value * kernel_val;
         }
     }
     Gray::new(sum)
 }
 
+/// Apply a kernel to an image, producing an output of the same dimensions.
+///
+/// Out-of-bounds pixels are treated as zero.
 pub fn apply_kernel<const N: usize>(
     image: &ImageView<Gray<f32>>,
     kernel: &Kernel<N>,
@@ -28,12 +42,9 @@ pub fn apply_kernel<const N: usize>(
 
     assert!(w >= N && h >= N, "Image must be at least {N}x{N}");
 
-    let out_w = w - (N - 1);
-    let out_h = h - (N - 1);
+    let data = par_row_collect(w, h, |x, y| compute_pixel(image, kernel, x, y));
 
-    let data = par_row_collect(out_w, out_h, |x, y| compute_pixel(image, kernel, x, y));
-
-    Image::new(out_w, out_h, out_w, data)
+    Image::new(w, h, w, data)
 }
 
 #[cfg(test)]
@@ -54,11 +65,15 @@ mod tests {
 
         let out = apply_kernel(&img.view(), &identity);
 
-        assert_eq!(out.width(), 2);
-        assert_eq!(out.height(), 2);
-        assert_eq!(out.get(0, 0).value, 6.0);
-        assert_eq!(out.get(1, 0).value, 7.0);
-        assert_eq!(out.get(0, 1).value, 10.0);
-        assert_eq!(out.get(1, 1).value, 11.0);
+        // Same dimensions as input.
+        assert_eq!(out.width(), 4);
+        assert_eq!(out.height(), 4);
+        // All pixels get proper results — identity kernel returns the center pixel.
+        assert_eq!(out.get(0, 0).value, 1.0);
+        assert_eq!(out.get(1, 1).value, 6.0);
+        assert_eq!(out.get(2, 1).value, 7.0);
+        assert_eq!(out.get(1, 2).value, 10.0);
+        assert_eq!(out.get(2, 2).value, 11.0);
+        assert_eq!(out.get(3, 3).value, 16.0);
     }
 }

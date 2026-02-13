@@ -3,13 +3,17 @@ use std::process;
 use std::time::Instant;
 
 use clap::Parser;
-use oxislam_features::descriptor::brief::{BriefExtractor128, BriefExtractor256, BriefExtractor512};
+use oxislam_features::descriptor::brief::{
+    BriefExtractor128, BriefExtractor256, BriefExtractor512,
+};
 use oxislam_features::descriptor::patch::PatchExtractor;
 use oxislam_features::detector::fast::FastDetector;
 use oxislam_features::detector::harris::HarrisDetector;
+use oxislam_features::detector::orb::OrbDetector;
 use oxislam_features::keypoint::Keypoint;
 use oxislam_features::matcher::brute_force::BruteForceMatcher;
 use oxislam_features::matcher::distance::{Hamming, L2Squared};
+use oxislam_features::pyramid::Pyramid;
 use oxislam_features::traits::descriptor::DescriptorExtractor;
 use oxislam_features::traits::detector::KeypointDetector;
 use oxislam_features::traits::matcher::{DescriptorMatch, DescriptorMatcher};
@@ -35,8 +39,8 @@ struct Args {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// Detector to use: fast, harris
-    #[arg(short, long, default_value = "fast")]
+    /// Detector to use: fast, harris, orb
+    #[arg(short, long, default_value = "orb")]
     detector: String,
 
     /// Descriptor to use: brief128, brief256, brief512, patch
@@ -70,22 +74,23 @@ fn detect(
     let det: Box<dyn KeypointDetector<Gray<f32>>> = match detector {
         "fast" => Box::new(FastDetector::default()),
         "harris" => Box::new(HarrisDetector::default()),
+        "orb" => Box::new(OrbDetector::default()),
         _ => {
             eprintln!("Error: unknown detector '{detector}'");
-            eprintln!("Available detectors: fast, harris");
+            eprintln!("Available detectors: fast, harris, orb");
             process::exit(1);
         }
     };
     let t0 = Instant::now();
-    let kps1 = det.detect(img1);
-    let kps2 = det.detect(img2);
+    let (kps1, kps2) = if detector == "orb" {
+        let pyr1 = Pyramid::build(img1, 8, 1.2);
+        let pyr2 = Pyramid::build(img2, 8, 1.2);
+        (det.detect_multiscale(&pyr1), det.detect_multiscale(&pyr2))
+    } else {
+        (det.detect(img1), det.detect(img2))
+    };
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
-    println!(
-        "Detected {} + {} keypoints in {ms:.1}ms ({})",
-        kps1.len(),
-        kps2.len(),
-        detector,
-    );
+    println!("Detected {} + {} keypoints in {ms:.1}ms ({})", kps1.len(), kps2.len(), detector);
     (kps1, kps2)
 }
 
@@ -120,11 +125,7 @@ fn brief_pipeline<const L: usize>(
     let feats1 = extractor.describe(img1, kps1);
     let feats2 = extractor.describe(img2, kps2);
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
-    println!(
-        "Extracted {} + {} descriptors in {ms:.1}ms",
-        feats1.len(),
-        feats2.len(),
-    );
+    println!("Extracted {} + {} descriptors in {ms:.1}ms", feats1.len(), feats2.len(),);
 
     let matcher = BruteForceMatcher::new(Hamming).with_ratio(0.75);
     let descs1: Vec<_> = feats1.iter().map(|f| f.descriptor.clone()).collect();
@@ -152,11 +153,7 @@ fn patch_pipeline(
     let feats1 = extractor.describe(img1, kps1);
     let feats2 = extractor.describe(img2, kps2);
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
-    println!(
-        "Extracted {} + {} descriptors in {ms:.1}ms",
-        feats1.len(),
-        feats2.len(),
-    );
+    println!("Extracted {} + {} descriptors in {ms:.1}ms", feats1.len(), feats2.len(),);
 
     let matcher = BruteForceMatcher::new(L2Squared).with_ratio(0.75);
     let descs1: Vec<_> = feats1.iter().map(|f| f.descriptor.clone()).collect();

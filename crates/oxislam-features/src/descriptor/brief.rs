@@ -1,10 +1,11 @@
-use oxislam_image::Gray;
-use oxislam_image::image::ImageView;
+use oxislam_image::image::{Image, ImageView};
+use oxislam_image::{Gray, gaussian_5x5};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand_distr::{Distribution, Normal};
 
 use crate::keypoint::Keypoint;
+use crate::orientation::rotate;
 use crate::traits::descriptor::{BinaryDescriptor, DescriptorExtractor};
 
 const DEFAULT_PATCH_SIZE: usize = 49;
@@ -52,13 +53,19 @@ impl<const L: usize> BriefExtractor<L> {
 
         let mut rng = SmallRng::seed_from_u64(seed);
         let gaussian = Normal::new(0.0, (patch_size - 1) as f32 / 6.0).unwrap();
-        let mut sample = || {
-            (gaussian.sample(&mut rng) as isize)
-                .clamp(-(patch_size as isize) / 2, (patch_size as isize) / 2 - 1)
+        let half = (patch_size / 2) as isize;
+        let r_sq = (half - 1) * (half - 1);
+
+        let mut sample_point = || loop {
+            let x = (gaussian.sample(&mut rng) as isize).clamp(-half, half - 1);
+            let y = (gaussian.sample(&mut rng) as isize).clamp(-half, half - 1);
+            if x * x + y * y <= r_sq {
+                return (x, y);
+            }
         };
 
         for _ in 0..num_bits {
-            let test = BinaryTest { t1: (sample(), sample()), t2: (sample(), sample()) };
+            let test = BinaryTest { t1: sample_point(), t2: sample_point() };
             tests.push(test);
         }
 
@@ -66,12 +73,17 @@ impl<const L: usize> BriefExtractor<L> {
     }
 
     #[inline]
-    fn build(&self, view: ImageView<Gray<f32>>) -> BriefDescriptor<L> {
+    fn build(&self, view: ImageView<Gray<f32>>, orientation: Option<f32>) -> BriefDescriptor<L> {
         let mut data = [0u64; L];
         let center = (self.patch_size / 2) as isize;
+        let (sin, cos) = orientation.map(f32::sin_cos).unwrap_or((0.0, 1.0));
+
         for (idx, &test) in self.binary_tests.iter().enumerate() {
-            let p1 = view.get((center + test.t1.0) as usize, (center + test.t1.1) as usize);
-            let p2 = view.get((center + test.t2.0) as usize, (center + test.t2.1) as usize);
+            let (x1, y1) = rotate(test.t1, sin, cos);
+            let (x2, y2) = rotate(test.t2, sin, cos);
+
+            let p1 = view.get((center + x1) as usize, (center + y1) as usize);
+            let p2 = view.get((center + x2) as usize, (center + y2) as usize);
             if p1.value > p2.value {
                 data[idx / 64] |= 1u64 << (idx % 64);
             }
@@ -108,7 +120,11 @@ impl<const L: usize> DescriptorExtractor<Gray<f32>, BriefDescriptor<L>> for Brie
         kp: &Keypoint,
     ) -> Option<BriefDescriptor<L>> {
         let patch = image.patch(kp.position.x, kp.position.y, self.patch_size)?;
-        Some(self.build(patch))
+        Some(self.build(patch, kp.orientation))
+    }
+
+    fn preprocess(&self, image: &ImageView<Gray<f32>>) -> Option<Image<Gray<f32>>> {
+        Some(gaussian_5x5(image))
     }
 }
 
