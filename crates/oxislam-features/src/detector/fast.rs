@@ -153,7 +153,16 @@ impl FastDetector {
 
 impl KeypointDetector<Gray<f32>> for FastDetector {
     fn detect(&self, image: &ImageView<Gray<f32>>) -> Vec<Keypoint> {
+        let _span =
+            crate::trace::span!("fast_detect", width = image.width(), height = image.height());
         if image.width() < MIN_IMAGE_SIZE || image.height() < MIN_IMAGE_SIZE {
+            crate::trace::event!(
+                tracing::Level::WARN,
+                width = image.width(),
+                height = image.height(),
+                min = MIN_IMAGE_SIZE,
+                "image too small for fast detection"
+            );
             return Vec::new();
         }
 

@@ -39,7 +39,16 @@ impl HarrisDetector {
 
 impl KeypointDetector<Gray<f32>> for HarrisDetector {
     fn detect(&self, image: &ImageView<Gray<f32>>) -> Vec<Keypoint> {
+        let _span =
+            crate::trace::span!("harris_detect", width = image.width(), height = image.height());
         if image.width() < MIN_IMAGE_SIZE || image.height() < MIN_IMAGE_SIZE {
+            crate::trace::event!(
+                tracing::Level::WARN,
+                width = image.width(),
+                height = image.height(),
+                min = MIN_IMAGE_SIZE,
+                "image too small for harris detection"
+            );
             return Vec::new();
         }
 
@@ -47,6 +56,7 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
         let response = harris_response_map(&gt.sxx.view(), &gt.syy.view(), &gt.sxy.view(), self.k);
         let max_r = response.view().iter().fold(f32::NEG_INFINITY, |m, v| m.max(*v));
         let threshold = self.min_threshold.max(self.alpha * max_r);
+        crate::trace::event!(tracing::Level::DEBUG, max_response = max_r, threshold = threshold);
         let w = response.width();
         let h = response.height();
 

@@ -17,6 +17,7 @@ pub const SOBEL_Y: Kernel<3> = [
 ];
 
 pub fn sobel(image: &ImageView<Gray<f32>>) -> (Image<Gray<f32>>, Image<Gray<f32>>) {
+    let _span = crate::trace::span!("sobel", width = image.width(), height = image.height());
     let ix = apply_kernel(image, &SOBEL_X);
     let iy = apply_kernel(image, &SOBEL_Y);
     (ix, iy)

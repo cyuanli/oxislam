@@ -4,9 +4,8 @@ use crate::pixel::Gray;
 
 const GAUSSIAN_3X3_1D: [f32; 3] = [1.0 / 4.0, 2.0 / 4.0, 1.0 / 4.0];
 const GAUSSIAN_5X5_1D: [f32; 5] = [1.0 / 16.0, 4.0 / 16.0, 6.0 / 16.0, 4.0 / 16.0, 1.0 / 16.0];
-const GAUSSIAN_7X7_1D: [f32; 7] = [
-    1.0 / 64.0, 6.0 / 64.0, 15.0 / 64.0, 20.0 / 64.0, 15.0 / 64.0, 6.0 / 64.0, 1.0 / 64.0,
-];
+const GAUSSIAN_7X7_1D: [f32; 7] =
+    [1.0 / 64.0, 6.0 / 64.0, 15.0 / 64.0, 20.0 / 64.0, 15.0 / 64.0, 6.0 / 64.0, 1.0 / 64.0];
 
 // Keep the 2D 3x3 constant for external use (e.g. Harris corner detection).
 #[rustfmt::skip]
@@ -55,6 +54,7 @@ pub fn gaussian<const N: usize>(image: &ImageView<Gray<f32>>) -> Image<Gray<f32>
 where
     sealed::Size<N>: sealed::GaussianKernel,
 {
+    let _span = crate::trace::span!("gaussian");
     use sealed::GaussianKernel;
     sealed::Size::<N>::apply(image)
 }

@@ -1,0 +1,15 @@
+[package]
+name = "oxislam-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared utilities for the oxislam workspace"
+
+[dependencies]
+tracing = { version = "0.1", optional = true }
+
+[features]
+default = []
+tracing = ["dep:tracing"]

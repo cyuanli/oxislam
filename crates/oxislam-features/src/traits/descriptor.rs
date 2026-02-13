@@ -26,6 +26,7 @@ pub trait DescriptorExtractor<P: MaybeSync + Copy, D: MaybeSend>: MaybeSync {
 
     /// Extract descriptors for multiple keypoints in parallel.
     fn describe(&self, image: &ImageView<P>, keypoints: Vec<Keypoint>) -> Vec<Feature<D>> {
+        let _span = crate::trace::span!("describe", keypoints = keypoints.len());
         let preprocessed = self.preprocess(image);
         let view;
         let image = match &preprocessed {
@@ -40,6 +41,11 @@ pub trait DescriptorExtractor<P: MaybeSync + Copy, D: MaybeSend>: MaybeSync {
 
     /// Extract descriptors for multi-scale keypoints, applying preprocessing once per pyramid level.
     fn describe_at_scale(&self, pyramid: &Pyramid<P>, keypoints: Vec<Keypoint>) -> Vec<Feature<D>> {
+        let _span = crate::trace::span!(
+            "describe_at_scale",
+            keypoints = keypoints.len(),
+            levels = pyramid.num_levels()
+        );
         let preprocessed: Vec<Option<Image<P>>> =
             (0..pyramid.num_levels()).map(|l| self.preprocess(&pyramid.level(l).view())).collect();
 

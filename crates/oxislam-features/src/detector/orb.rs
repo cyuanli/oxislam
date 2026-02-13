@@ -26,10 +26,7 @@ impl Default for OrbDetector {
 
 impl KeypointDetector<Gray<f32>> for OrbDetector {
     fn detect(&self, image: &ImageView<Gray<f32>>) -> Vec<Keypoint> {
-        let mut keypoints = {
-            let _s = span!("fast");
-            self.fast.detect(image)
-        };
+        let mut keypoints = self.fast.detect(image);
 
         {
             let _s = span!("harris_rescore", keypoints = keypoints.len());

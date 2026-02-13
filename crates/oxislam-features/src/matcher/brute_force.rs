@@ -1,6 +1,6 @@
 use oxislam_image::parallel::{MaybeSend, MaybeSync, par_filter_map};
 
-use crate::trace::span;
+use crate::trace::{event, span};
 use crate::traits::matcher::{DescriptorMatch, DescriptorMatcher, Distance};
 
 const DEFAULT_RATIO: f32 = 0.75;
@@ -33,7 +33,7 @@ impl<D: MaybeSend + MaybeSync, Dist: Distance<D> + MaybeSync> DescriptorMatcher<
 {
     fn match_descriptors(&self, source: &[D], reference: &[D]) -> Vec<DescriptorMatch> {
         let _span = span!("match_descriptors", source = source.len(), reference = reference.len());
-        par_filter_map(source.iter().enumerate(), |(si, sd): (usize, &D)| {
+        let matches = par_filter_map(source.iter().enumerate(), |(si, sd): (usize, &D)| {
             let (mut best, mut second_best) = (f32::MAX, f32::MAX);
             let mut best_ri = 0;
 
@@ -53,7 +53,9 @@ impl<D: MaybeSend + MaybeSync, Dist: Distance<D> + MaybeSync> DescriptorMatcher<
             }
 
             Some(DescriptorMatch { source_idx: si, reference_idx: best_ri, distance: best })
-        })
+        });
+        event!(tracing::Level::INFO, matches = matches.len());
+        matches
     }
 }
 

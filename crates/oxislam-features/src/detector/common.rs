@@ -1,9 +1,9 @@
 use std::ops::Range;
 
 use oxislam_geometry::Point2;
+use oxislam_image::filter::{GAUSSIAN_3X3, SOBEL_X, SOBEL_Y};
 use oxislam_image::image::{Image, ImageView};
 use oxislam_image::parallel::{par_flat_map, par_row_collect};
-use oxislam_image::filter::{GAUSSIAN_3X3, SOBEL_X, SOBEL_Y};
 use oxislam_image::{Gray, Grid2D, gaussian, sobel};
 
 use crate::keypoint::Keypoint;
@@ -22,6 +22,7 @@ pub(crate) fn non_maximum_suppression(
     x_range: Range<usize>,
     y_range: Range<usize>,
 ) -> Vec<Keypoint> {
+    let _span = crate::trace::span!("nms");
     let w = response.width();
     let h = response.height();
 
@@ -59,6 +60,7 @@ pub(crate) fn non_maximum_suppression(
 /// Applies Sobel to get gradients, squares/cross-multiplies, then smooths
 /// each component with a 3x3 Gaussian.
 pub(crate) fn gradient_tensors(image: &ImageView<Gray<f32>>) -> GradientTensors<f32> {
+    let _span = crate::trace::span!("gradient_tensors");
     let (ix, iy) = sobel(image);
     let ix2 = &ix * &ix;
     let iy2 = &iy * &iy;
@@ -142,6 +144,7 @@ pub(crate) fn harris_response_map(
     sxy: &ImageView<Gray<f32>>,
     k: f32,
 ) -> Grid2D<f32> {
+    let _span = crate::trace::span!("harris_response_map");
     let w = sxx.width();
     let h = sxx.height();
     let data = par_row_collect(w, h, |x, y| {

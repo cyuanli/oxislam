@@ -15,3 +15,6 @@ pub use grid::{Grid2D, Grid2DView, Grid2DViewMut};
 pub use image::ConvertTo;
 pub use parallel::{MaybeSend, MaybeSync};
 pub use pixel::{Gray, Rgb};
+
+pub use oxislam_core::trace;
+

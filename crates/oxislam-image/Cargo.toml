@@ -9,9 +9,12 @@ description = "Image processing primitives for computer vision"
 
 [dependencies]
 image = { version = "0.25", optional = true, default-features = false }
+oxislam-core = { path = "../oxislam-core" }
 rayon = { version = "1.11", optional = true }
+tracing = { version = "0.1", optional = true }
 
 [features]
 default = []
 image = ["dep:image"]
 rayon = ["dep:rayon"]
+tracing = ["dep:tracing", "oxislam-core/tracing"]

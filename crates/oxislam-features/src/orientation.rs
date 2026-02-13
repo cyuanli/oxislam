@@ -13,6 +13,7 @@ pub fn rotate((dx, dy): (isize, isize), sin: f32, cos: f32) -> (isize, isize) {
 
 /// Compute keypoint orientations using the intensity centroid method within a circular `radius`.
 pub fn intensity_centroid(image: &ImageView<Gray<f32>>, keypoints: &mut [Keypoint], radius: usize) {
+    let _span = crate::trace::span!("intensity_centroid", keypoints = keypoints.len());
     let r = radius as isize;
     let r_sq = (radius * radius) as isize;
 

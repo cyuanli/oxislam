@@ -7,7 +7,7 @@ use crate::detector::orb::OrbDetector;
 use crate::feature::Feature;
 use crate::orientation::intensity_centroid;
 use crate::pyramid::Pyramid;
-use crate::trace::span;
+use crate::trace::{event, span};
 use crate::traits::descriptor::DescriptorExtractor;
 use crate::traits::detector::KeypointDetector;
 use crate::traits::pipeline::FeaturePipeline;
@@ -45,10 +45,7 @@ impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
     fn extract(&self, image: &ImageView<Gray<f32>>) -> Vec<Feature<BriefDescriptor256>> {
         let _span = span!("orb_extract");
 
-        let pyramid = {
-            let _s = span!("pyramid_build");
-            Pyramid::build(image, self.num_levels, self.scale_factor)
-        };
+        let pyramid = Pyramid::build(image, self.num_levels, self.scale_factor);
 
         // Detect and orient at each pyramid level, then rescale to base coordinates
         let mut keypoints = Vec::new();
@@ -65,6 +62,7 @@ impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
                 intensity_centroid(&level_view, &mut kps, self.orientation_radius);
                 kps.retain(|kp| kp.orientation.is_some());
             }
+            event!(tracing::Level::DEBUG, level_keypoints = kps.len(), level = level);
 
             let scale = pyramid.scale_at_level(level);
             for kp in &mut kps {
@@ -73,6 +71,10 @@ impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
             }
             keypoints.extend(kps);
         }
+        if keypoints.is_empty() {
+            event!(tracing::Level::WARN, "no keypoints detected across any pyramid level");
+        }
+        event!(tracing::Level::INFO, total_keypoints = keypoints.len());
 
         // Sort by response (descending) and truncate
         {
@@ -80,9 +82,9 @@ impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
             keypoints.sort_unstable_by(|a, b| b.response.total_cmp(&a.response));
             keypoints.truncate(self.max_keypoints);
         }
+        event!(tracing::Level::INFO, after_truncate = keypoints.len(), max = self.max_keypoints);
 
         // Extract BRIEF descriptors at the appropriate pyramid scale
-        let _s = span!("describe");
         self.extractor.describe_at_scale(&pyramid, keypoints)
     }
 }

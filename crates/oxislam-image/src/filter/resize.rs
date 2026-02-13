@@ -8,6 +8,13 @@ pub fn resize_bilinear(
     new_w: usize,
     new_h: usize,
 ) -> Image<Gray<f32>> {
+    let _span = crate::trace::span!(
+        "resize_bilinear",
+        src_w = image.width(),
+        src_h = image.height(),
+        dst_w = new_w,
+        dst_h = new_h
+    );
     assert!(new_w > 0 && new_h > 0, "output dimensions must be > 0");
 
     let src_w = image.width() as f32;

@@ -11,6 +11,7 @@ pub struct Pyramid<P> {
 impl Pyramid<Gray<f32>> {
     /// Build a pyramid by repeatedly downscaling `image` by `scale_factor`.
     pub fn build(image: &ImageView<Gray<f32>>, num_levels: usize, scale_factor: f32) -> Self {
+        let _span = crate::trace::span!("pyramid_build", num_levels = num_levels, scale_factor = %scale_factor);
         assert!(num_levels >= 1);
         assert!(scale_factor > 1.0);
 
@@ -27,6 +28,12 @@ impl Pyramid<Gray<f32>> {
             let new_h = (base_h / scale).round() as usize;
 
             if new_w < 3 || new_h < 3 {
+                crate::trace::event!(
+                    tracing::Level::WARN,
+                    requested = num_levels,
+                    actual = levels.len(),
+                    "pyramid truncated: level too small"
+                );
                 break;
             }
 

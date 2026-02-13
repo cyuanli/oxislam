@@ -39,7 +39,6 @@ pub fn apply_kernel<const N: usize>(
 ) -> Image<Gray<f32>> {
     let w = image.width();
     let h = image.height();
-
     assert!(w >= N && h >= N, "Image must be at least {N}x{N}");
 
     let data = par_row_collect(w, h, |x, y| compute_pixel(image, kernel, x, y));

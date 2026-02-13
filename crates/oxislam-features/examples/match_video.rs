@@ -46,10 +46,14 @@ struct VideoInfo {
 fn probe_video(path: &PathBuf) -> VideoInfo {
     let output = Command::new("ffprobe")
         .args([
-            "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,r_frame_rate,nb_frames",
-            "-of", "csv=p=0",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=width,height,r_frame_rate,nb_frames",
+            "-of",
+            "csv=p=0",
         ])
         .arg(path)
         .output()
@@ -77,10 +81,7 @@ fn probe_video(path: &PathBuf) -> VideoInfo {
 }
 
 fn rgb_image_from_bytes(bytes: &[u8], width: usize, height: usize) -> Image<Rgb<u8>> {
-    let pixels: Vec<Rgb<u8>> = bytes
-        .chunks_exact(3)
-        .map(|c| Rgb::new(c[0], c[1], c[2]))
-        .collect();
+    let pixels: Vec<Rgb<u8>> = bytes.chunks_exact(3).map(|c| Rgb::new(c[0], c[1], c[2])).collect();
     Image::new(width, height, width, pixels)
 }
 
@@ -98,10 +99,8 @@ fn main() {
         let dir = args.video.parent().unwrap_or_else(|| std::path::Path::new("."));
         dir.join("trace.json")
     });
-    let (chrome_layer, _guard) = ChromeLayerBuilder::new()
-        .file(trace_path.clone())
-        .include_args(true)
-        .build();
+    let (chrome_layer, _guard) =
+        ChromeLayerBuilder::new().file(trace_path.clone()).include_args(true).build();
     tracing_subscriber::registry().with(chrome_layer).init();
 
     let output_path = args.output.unwrap_or_else(|| {
@@ -119,16 +118,9 @@ fn main() {
 
     // Spawn decoder
     let mut decoder = Command::new("ffmpeg")
-        .args([
-            "-i",
-        ])
+        .args(["-i"])
         .arg(&args.video)
-        .args([
-            "-f", "rawvideo",
-            "-pix_fmt", "rgb24",
-            "-v", "quiet",
-            "-",
-        ])
+        .args(["-f", "rawvideo", "-pix_fmt", "rgb24", "-v", "quiet", "-"])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -138,13 +130,20 @@ fn main() {
     let mut encoder = Command::new("ffmpeg")
         .args([
             "-y",
-            "-f", "rawvideo",
-            "-pix_fmt", "rgb24",
-            "-s", &format!("{canvas_w}x{h}"),
-            "-r", &info.fps,
-            "-i", "-",
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-s",
+            &format!("{canvas_w}x{h}"),
+            "-r",
+            &info.fps,
+            "-i",
+            "-",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
         ])
         .arg(&output_path)
         .stdin(Stdio::piped())
@@ -236,7 +235,10 @@ fn main() {
 
     let elapsed = t0.elapsed().as_secs_f64();
     eprintln!();
-    println!("Processed {frame_count} frames in {elapsed:.1}s ({:.1} fps)", frame_count as f64 / elapsed);
+    println!(
+        "Processed {frame_count} frames in {elapsed:.1}s ({:.1} fps)",
+        frame_count as f64 / elapsed
+    );
     println!("Average matches per frame: {:.1}", total_matches as f64 / frame_count.max(1) as f64);
     println!("Trace written to {}", trace_path.display());
     if status.success() {
