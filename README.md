@@ -57,6 +57,16 @@ cargo run --example match_features -- image1.jpg image2.jpg
 
 Detects keypoints, extracts descriptors, and matches features between two images. Outputs a side-by-side visualization with match lines. Supports `--detector` (fast, harris) and `--descriptor` (brief128, brief256, brief512, patch) options.
 
+### Match Video
+
+See `crates/oxislam-features/examples/match_video.rs`:
+
+```bash
+cargo run --features rayon --example match_video -- input.mp4 -o output.mp4
+```
+
+Demonstrates ORB feature matching stability across video frames. Produces an output video with the first frame on the left and the current frame on the right, with colored match lines drawn between them. Requires `ffmpeg` installed on the system.
+
 ## Crates
 
 - **oxislam-image**: Image processing and filtering (interop with the `image` crate behind the `image` feature)
