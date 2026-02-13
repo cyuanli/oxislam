@@ -1,5 +1,5 @@
 use oxislam_image::image::{Image, ImageView};
-use oxislam_image::{Gray, gaussian_5x5};
+use oxislam_image::{Gray, gaussian};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use rand_distr::{Distribution, Normal};
@@ -124,7 +124,7 @@ impl<const L: usize> DescriptorExtractor<Gray<f32>, BriefDescriptor<L>> for Brie
     }
 
     fn preprocess(&self, image: &ImageView<Gray<f32>>) -> Option<Image<Gray<f32>>> {
-        Some(gaussian_5x5(image))
+        Some(gaussian::<5>(image))
     }
 }
 

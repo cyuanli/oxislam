@@ -1,9 +1,10 @@
 use oxislam_image::image::ImageView;
 use oxislam_image::pixel::Gray;
 
-use super::common::{gradient_tensors, harris_response};
+use super::common::harris_response_local;
 use crate::detector::fast::FastDetector;
 use crate::keypoint::Keypoint;
+use crate::trace::span;
 use crate::traits::detector::KeypointDetector;
 
 const DEFAULT_HARRIS_K: f32 = 0.04;
@@ -25,18 +26,18 @@ impl Default for OrbDetector {
 
 impl KeypointDetector<Gray<f32>> for OrbDetector {
     fn detect(&self, image: &ImageView<Gray<f32>>) -> Vec<Keypoint> {
-        let mut keypoints = self.fast.detect(image);
+        let mut keypoints = {
+            let _s = span!("fast");
+            self.fast.detect(image)
+        };
 
-        let gt = gradient_tensors(image);
-        for kp in &mut keypoints {
-            let x = kp.position.x as usize;
-            let y = kp.position.y as usize;
-            kp.response = harris_response(
-                gt.sxx.get(x, y).value,
-                gt.syy.get(x, y).value,
-                gt.sxy.get(x, y).value,
-                self.harris_k,
-            );
+        {
+            let _s = span!("harris_rescore", keypoints = keypoints.len());
+            for kp in &mut keypoints {
+                let x = kp.position.x as usize;
+                let y = kp.position.y as usize;
+                kp.response = harris_response_local(image, x, y, self.harris_k);
+            }
         }
 
         keypoints

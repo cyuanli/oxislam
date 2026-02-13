@@ -7,6 +7,7 @@ use crate::detector::orb::OrbDetector;
 use crate::feature::Feature;
 use crate::orientation::intensity_centroid;
 use crate::pyramid::Pyramid;
+use crate::trace::span;
 use crate::traits::descriptor::DescriptorExtractor;
 use crate::traits::detector::KeypointDetector;
 use crate::traits::pipeline::FeaturePipeline;
@@ -42,15 +43,28 @@ impl Default for OrbPipeline {
 
 impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
     fn extract(&self, image: &ImageView<Gray<f32>>) -> Vec<Feature<BriefDescriptor256>> {
-        let pyramid = Pyramid::build(image, self.num_levels, self.scale_factor);
+        let _span = span!("orb_extract");
+
+        let pyramid = {
+            let _s = span!("pyramid_build");
+            Pyramid::build(image, self.num_levels, self.scale_factor)
+        };
 
         // Detect and orient at each pyramid level, then rescale to base coordinates
         let mut keypoints = Vec::new();
         for level in 0..pyramid.num_levels() {
             let level_view = pyramid.level(level).view();
-            let mut kps = self.detector.detect(&level_view);
-            intensity_centroid(&level_view, &mut kps, self.orientation_radius);
-            kps.retain(|kp| kp.orientation.is_some());
+
+            let mut kps = {
+                let _s = span!("detect", level = level);
+                self.detector.detect(&level_view)
+            };
+
+            {
+                let _s = span!("orient", level = level);
+                intensity_centroid(&level_view, &mut kps, self.orientation_radius);
+                kps.retain(|kp| kp.orientation.is_some());
+            }
 
             let scale = pyramid.scale_at_level(level);
             for kp in &mut kps {
@@ -61,10 +75,14 @@ impl FeaturePipeline<Gray<f32>, BriefDescriptor256> for OrbPipeline {
         }
 
         // Sort by response (descending) and truncate
-        keypoints.sort_unstable_by(|a, b| b.response.total_cmp(&a.response));
-        keypoints.truncate(self.max_keypoints);
+        {
+            let _s = span!("sort_truncate");
+            keypoints.sort_unstable_by(|a, b| b.response.total_cmp(&a.response));
+            keypoints.truncate(self.max_keypoints);
+        }
 
         // Extract BRIEF descriptors at the appropriate pyramid scale
+        let _s = span!("describe");
         self.extractor.describe_at_scale(&pyramid, keypoints)
     }
 }

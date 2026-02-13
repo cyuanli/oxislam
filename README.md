@@ -28,7 +28,7 @@ A Rust library for computer vision and SLAM (Simultaneous Localization and Mappi
 
 ## Features
 
-- **Image Processing**: Filtering (Gaussian, Sobel), bilinear resize, image pyramids, pixel types, parallel operations, [`image`](https://crates.io/crates/image) crate interop (behind `image` feature)
+- **Image Processing**: Filtering (separable Gaussian, Sobel), bilinear resize, image pyramids, pixel types, parallel operations, [`image`](https://crates.io/crates/image) crate interop (behind `image` feature)
 - **Geometry**: 2D/3D point and vector types (via nalgebra)
 - **Feature Detection**: Harris corner detector, FAST corner detector, ORB detector
 - **Feature Description**: BRIEF binary descriptors, patch descriptors
@@ -65,11 +65,11 @@ See `crates/oxislam-features/examples/match_video.rs`:
 cargo run --features rayon --example match_video -- input.mp4 -o output.mp4
 ```
 
-Demonstrates ORB feature matching stability across video frames. Produces an output video with the first frame on the left and the current frame on the right, with colored match lines drawn between them. Requires `ffmpeg` installed on the system.
+Demonstrates ORB feature matching stability across video frames. Produces an output video with the first frame on the left and the current frame on the right, with colored match lines drawn between them. Use `--trace trace.json` to emit a Chrome trace file for profiling. Requires `ffmpeg` installed on the system.
 
 ## Crates
 
 - **oxislam-image**: Image processing and filtering (interop with the `image` crate behind the `image` feature)
 - **oxislam-geometry**: Geometric types
-- **oxislam-features**: Feature detection and description
+- **oxislam-features**: Feature detection and description (`tracing` feature for span instrumentation)
 - **oxislam-viz**: Visualization utilities (drawing, canvas, colors)

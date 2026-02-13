@@ -19,7 +19,7 @@ use oxislam_features::traits::matcher::{DescriptorMatch, DescriptorMatcher};
 use oxislam_features::traits::pipeline::FeaturePipeline;
 use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
-use oxislam_image::{ConvertTo, Gray, Rgb, gaussian_3x3};
+use oxislam_image::{ConvertTo, Gray, Rgb, gaussian};
 use oxislam_viz::canvas::side_by_side;
 use oxislam_viz::color::distinct_color;
 use oxislam_viz::drawing::{draw_cross, draw_line};
@@ -205,8 +205,8 @@ fn main() {
     println!("Image 2: {w2}x{h2} from {}", args.image2.display());
 
     // Smooth images with Gaussian 3x3
-    let gray1 = gaussian_3x3(&gray1.view());
-    let gray2 = gaussian_3x3(&gray2.view());
+    let gray1 = gaussian::<3>(&gray1.view());
+    let gray2 = gaussian::<3>(&gray2.view());
 
     // Detect, describe, and match
     let result = if args.detector == "orb" {

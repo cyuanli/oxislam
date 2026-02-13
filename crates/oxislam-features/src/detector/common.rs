@@ -3,7 +3,8 @@ use std::ops::Range;
 use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
 use oxislam_image::parallel::{par_flat_map, par_row_collect};
-use oxislam_image::{Gray, Grid2D, gaussian_3x3, sobel};
+use oxislam_image::filter::{GAUSSIAN_3X3, SOBEL_X, SOBEL_Y};
+use oxislam_image::{Gray, Grid2D, gaussian, sobel};
 
 use crate::keypoint::Keypoint;
 
@@ -63,9 +64,9 @@ pub(crate) fn gradient_tensors(image: &ImageView<Gray<f32>>) -> GradientTensors<
     let iy2 = &iy * &iy;
     let ixiy = &ix * &iy;
     GradientTensors {
-        sxx: gaussian_3x3(&ix2.view()),
-        syy: gaussian_3x3(&iy2.view()),
-        sxy: gaussian_3x3(&ixiy.view()),
+        sxx: gaussian::<3>(&ix2.view()),
+        syy: gaussian::<3>(&iy2.view()),
+        sxy: gaussian::<3>(&ixiy.view()),
     }
 }
 
@@ -76,6 +77,62 @@ pub(crate) fn harris_response(sxx: f32, syy: f32, sxy: f32, k: f32) -> f32 {
     let det = sxx * syy - sxy * sxy;
     let trace = sxx + syy;
     det - k * trace * trace
+}
+
+/// Compute Harris response locally at a single pixel using a 5×5 neighborhood.
+///
+/// Equivalent to computing full-image Sobel → square/cross → Gaussian smoothing,
+/// but only at the single pixel (cx, cy).
+///
+/// # Panics
+///
+/// Panics if (cx, cy) is within 2 pixels of any image border.
+pub(crate) fn harris_response_local(
+    image: &ImageView<Gray<f32>>,
+    cx: usize,
+    cy: usize,
+    k: f32,
+) -> f32 {
+    assert!(cx >= 2 && cy >= 2, "harris_response_local: cx={cx}, cy={cy} must be >= 2");
+    assert!(
+        cx < image.width() - 2 && cy < image.height() - 2,
+        "harris_response_local: ({cx}, {cy}) too close to border for {}x{} image",
+        image.width(),
+        image.height(),
+    );
+
+    // Read 5×5 patch centered at (cx, cy).
+    let mut patch = [[0.0f32; 5]; 5];
+    for py in 0..5 {
+        for px in 0..5 {
+            patch[py][px] = image.get(cx + px - 2, cy + py - 2).value;
+        }
+    }
+
+    let mut sxx = 0.0f32;
+    let mut syy = 0.0f32;
+    let mut sxy = 0.0f32;
+
+    for gy in 0..3usize {
+        for gx in 0..3usize {
+            // Sobel at patch position (1 + gx, 1 + gy).
+            let mut ix = 0.0f32;
+            let mut iy = 0.0f32;
+            for sy in 0..3usize {
+                for sx in 0..3usize {
+                    let p = patch[gy + sy][gx + sx];
+                    ix += SOBEL_X[sy][sx] * p;
+                    iy += SOBEL_Y[sy][sx] * p;
+                }
+            }
+            let w = GAUSSIAN_3X3[gy][gx];
+            sxx += w * ix * ix;
+            syy += w * iy * iy;
+            sxy += w * ix * iy;
+        }
+    }
+
+    harris_response(sxx, syy, sxy, k)
 }
 
 /// Compute a full Harris response map from gradient tensor images.
@@ -148,5 +205,43 @@ mod tests {
 
         let kps = non_maximum_suppression(&grid, 1.0, 0..3, 0..1);
         assert!(kps.is_empty());
+    }
+
+    #[test]
+    fn harris_local_matches_full_image() {
+        use oxislam_image::image::Image;
+
+        // Create a 20×20 test image with varied content.
+        let w = 20usize;
+        let h = 20usize;
+        let data: Vec<Gray<f32>> = (0..w * h)
+            .map(|i| {
+                let x = i % w;
+                let y = i / w;
+                Gray::new(((x * 7 + y * 13 + x * y) % 256) as f32 / 255.0)
+            })
+            .collect();
+        let img = Image::new(w, h, w, data);
+        let view = img.view();
+
+        let gt = gradient_tensors(&view);
+        let k = 0.04f32;
+
+        // Compare at all interior pixels where the local version is valid (2px border).
+        for y in 2..h - 2 {
+            for x in 2..w - 2 {
+                let full = harris_response(
+                    gt.sxx.get(x, y).value,
+                    gt.syy.get(x, y).value,
+                    gt.sxy.get(x, y).value,
+                    k,
+                );
+                let local = harris_response_local(&view, x, y, k);
+                assert!(
+                    (full - local).abs() < 1e-4,
+                    "Mismatch at ({x}, {y}): full={full}, local={local}",
+                );
+            }
+        }
     }
 }

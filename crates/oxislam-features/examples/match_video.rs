@@ -12,10 +12,12 @@ use oxislam_features::traits::matcher::DescriptorMatcher;
 use oxislam_features::traits::pipeline::FeaturePipeline;
 use oxislam_geometry::Point2;
 use oxislam_image::image::Image;
-use oxislam_image::{ConvertTo, Gray, Rgb, gaussian_3x3};
+use oxislam_image::{ConvertTo, Gray, Rgb, gaussian};
 use oxislam_viz::canvas::side_by_side;
 use oxislam_viz::color::distinct_color;
 use oxislam_viz::drawing::{draw_cross, draw_line};
+use tracing_chrome::ChromeLayerBuilder;
+use tracing_subscriber::prelude::*;
 
 /// Match features across video frames to demonstrate ORB stability
 #[derive(Parser, Debug)]
@@ -28,6 +30,10 @@ struct Args {
     /// Path to output video (defaults to matches.mp4 next to input)
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Path to trace output (defaults to trace.json next to input)
+    #[arg(long)]
+    trace: Option<PathBuf>,
 }
 
 struct VideoInfo {
@@ -86,6 +92,18 @@ fn image_to_bytes(image: &Image<Rgb<u8>>) -> &[u8] {
 
 fn main() {
     let args = Args::parse();
+
+    // Set up tracing → Chrome JSON trace file
+    let trace_path = args.trace.clone().unwrap_or_else(|| {
+        let dir = args.video.parent().unwrap_or_else(|| std::path::Path::new("."));
+        dir.join("trace.json")
+    });
+    let (chrome_layer, _guard) = ChromeLayerBuilder::new()
+        .file(trace_path.clone())
+        .include_args(true)
+        .build();
+    tracing_subscriber::registry().with(chrome_layer).init();
+
     let output_path = args.output.unwrap_or_else(|| {
         let dir = args.video.parent().unwrap_or_else(|| std::path::Path::new("."));
         dir.join("matches.mp4")
@@ -147,7 +165,7 @@ fn main() {
     decoder_stdout.read_exact(&mut buf).expect("failed to read first frame");
     let ref_rgb = rgb_image_from_bytes(&buf, w, h);
     let ref_gray: Image<Gray<f32>> = ref_rgb.view().to();
-    let ref_gray = gaussian_3x3(&ref_gray.view());
+    let ref_gray = gaussian::<3>(&ref_gray.view());
     let ref_feats = pipeline.extract(&ref_gray.view());
     let ref_descs: Vec<_> = ref_feats.iter().map(|f| f.descriptor.clone()).collect();
     let ref_kps: Vec<Keypoint> = ref_feats.iter().map(|f| f.keypoint).collect();
@@ -170,9 +188,11 @@ fn main() {
             }
         }
 
+        let _frame_span = tracing::info_span!("frame", n = frame_count).entered();
+
         let cur_rgb = rgb_image_from_bytes(&frame_buf, w, h);
         let cur_gray: Image<Gray<f32>> = cur_rgb.view().to();
-        let cur_gray = gaussian_3x3(&cur_gray.view());
+        let cur_gray = gaussian::<3>(&cur_gray.view());
         let cur_feats = pipeline.extract(&cur_gray.view());
         let cur_descs: Vec<_> = cur_feats.iter().map(|f| f.descriptor.clone()).collect();
         let cur_kps: Vec<Keypoint> = cur_feats.iter().map(|f| f.keypoint).collect();
@@ -218,6 +238,7 @@ fn main() {
     eprintln!();
     println!("Processed {frame_count} frames in {elapsed:.1}s ({:.1} fps)", frame_count as f64 / elapsed);
     println!("Average matches per frame: {:.1}", total_matches as f64 / frame_count.max(1) as f64);
+    println!("Trace written to {}", trace_path.display());
     if status.success() {
         println!("Saved to {}", output_path.display());
     } else {

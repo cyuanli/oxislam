@@ -47,6 +47,50 @@ pub fn apply_kernel<const N: usize>(
     Image::new(w, h, w, data)
 }
 
+fn apply_1d_kernel<const N: usize>(
+    image: &ImageView<Gray<f32>>,
+    kernel_1d: &[f32; N],
+    horizontal: bool,
+) -> Image<Gray<f32>> {
+    let w = image.width();
+    let h = image.height();
+    let half = (N / 2) as isize;
+    let limit = if horizontal { w } else { h } as isize;
+
+    let data = par_row_collect(w, h, |x, y| {
+        let center = if horizontal { x } else { y } as isize;
+        let mut sum = 0.0;
+        for (k, &kv) in kernel_1d.iter().enumerate() {
+            let i = center + k as isize - half;
+            if i >= 0 && i < limit {
+                let (px, py) = if horizontal { (i as usize, y) } else { (x, i as usize) };
+                sum += image.get(px, py).value * kv;
+            }
+        }
+        Gray::new(sum)
+    });
+
+    Image::new(w, h, w, data)
+}
+
+/// Apply a separable 1D kernel as two passes (horizontal then vertical).
+///
+/// This is equivalent to `apply_kernel` with the outer product of `kernel_1d`
+/// with itself, but requires only 2N multiply-adds per pixel instead of N².
+/// Out-of-bounds pixels are treated as zero.
+pub(super) fn apply_separable_kernel<const N: usize>(
+    image: &ImageView<Gray<f32>>,
+    kernel_1d: &[f32; N],
+) -> Image<Gray<f32>> {
+    let w = image.width();
+    let h = image.height();
+
+    assert!(w >= N && h >= N, "Image must be at least {N}x{N}");
+
+    let intermediate = apply_1d_kernel(image, kernel_1d, true);
+    apply_1d_kernel(&intermediate.view(), kernel_1d, false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
