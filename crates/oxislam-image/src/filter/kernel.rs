@@ -73,10 +73,6 @@ fn apply_1d_kernel<const N: usize>(
 }
 
 /// Apply a separable 1D kernel as two passes (horizontal then vertical).
-///
-/// This is equivalent to `apply_kernel` with the outer product of `kernel_1d`
-/// with itself, but requires only 2N multiply-adds per pixel instead of N².
-/// Out-of-bounds pixels are treated as zero.
 pub(super) fn apply_separable_kernel<const N: usize>(
     image: &ImageView<Gray<f32>>,
     kernel_1d: &[f32; N],
@@ -108,10 +104,8 @@ mod tests {
 
         let out = apply_kernel(&img.view(), &identity);
 
-        // Same dimensions as input.
         assert_eq!(out.width(), 4);
         assert_eq!(out.height(), 4);
-        // All pixels get proper results — identity kernel returns the center pixel.
         assert_eq!(out.get(0, 0).value, 1.0);
         assert_eq!(out.get(1, 1).value, 6.0);
         assert_eq!(out.get(2, 1).value, 7.0);

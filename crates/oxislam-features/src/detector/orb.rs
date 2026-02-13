@@ -1,7 +1,7 @@
 use oxislam_image::image::ImageView;
 use oxislam_image::pixel::Gray;
 
-use super::common::harris_response_local;
+use super::common::harris_response_at;
 use crate::detector::fast::FastDetector;
 use crate::keypoint::Keypoint;
 use crate::trace::span;
@@ -33,7 +33,7 @@ impl KeypointDetector<Gray<f32>> for OrbDetector {
             for kp in &mut keypoints {
                 let x = kp.position.x as usize;
                 let y = kp.position.y as usize;
-                kp.response = harris_response_local(image, x, y, self.harris_k);
+                kp.response = harris_response_at(image, x, y, self.harris_k);
             }
         }
 

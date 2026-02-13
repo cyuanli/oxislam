@@ -4,8 +4,6 @@
 #[doc(hidden)]
 pub use tracing as __tracing;
 
-/// Create a tracing span and enter it. Returns a guard that exits the span on drop.
-/// When the `tracing` feature is disabled this is a zero-cost no-op.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __span {
@@ -25,10 +23,6 @@ macro_rules! __span {
     }};
 }
 
-/// Emit a tracing event at the given level.
-/// When the `tracing` feature is disabled this is a zero-cost no-op.
-///
-/// Usage: `event!(Level::INFO, count = 42)` or `event!(Level::DEBUG, "message")`
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __event {
@@ -38,7 +32,6 @@ macro_rules! __event {
     }};
 }
 
-/// Internal tracing helpers — no-ops when the `tracing` feature is disabled.
 #[doc(hidden)]
 pub mod trace {
     pub use crate::__event as event;

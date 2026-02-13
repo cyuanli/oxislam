@@ -43,13 +43,7 @@ mod sealed {
     }
 }
 
-/// Apply a Gaussian blur with a kernel of size `N`.
-///
-/// Supported sizes: 3, 5, 7. Uses separable convolution (two 1D passes).
-///
-/// # Panics
-///
-/// Panics if the image is smaller than `N×N`.
+/// Apply a Gaussian blur with a kernel of size `N` (3, 5, or 7).
 pub fn gaussian<const N: usize>(image: &ImageView<Gray<f32>>) -> Image<Gray<f32>>
 where
     sealed::Size<N>: sealed::GaussianKernel,

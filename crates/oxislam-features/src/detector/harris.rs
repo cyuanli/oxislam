@@ -1,7 +1,7 @@
 use oxislam_image::Gray;
 use oxislam_image::image::ImageView;
 
-use super::common::{gradient_tensors, harris_response_map, non_maximum_suppression};
+use super::common::{harris_response_map, nms, structure_tensor};
 use crate::keypoint::Keypoint;
 use crate::traits::detector::KeypointDetector;
 
@@ -52,7 +52,7 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
             return Vec::new();
         }
 
-        let gt = gradient_tensors(image);
+        let gt = structure_tensor(image);
         let response = harris_response_map(&gt.sxx.view(), &gt.syy.view(), &gt.sxy.view(), self.k);
         let max_r = response.view().iter().fold(f32::NEG_INFINITY, |m, v| m.max(*v));
         let threshold = self.min_threshold.max(self.alpha * max_r);
@@ -60,7 +60,7 @@ impl KeypointDetector<Gray<f32>> for HarrisDetector {
         let w = response.width();
         let h = response.height();
 
-        non_maximum_suppression(&response, threshold, 0..w, 0..h)
+        nms(&response, threshold, 0..w, 0..h)
     }
 }
 

@@ -2,7 +2,7 @@ use oxislam_image::image::ImageView;
 use oxislam_image::parallel::par_row_collect;
 use oxislam_image::{Gray, Grid2D};
 
-use super::common::non_maximum_suppression;
+use super::common::nms;
 use crate::keypoint::Keypoint;
 use crate::traits::detector::KeypointDetector;
 
@@ -169,7 +169,7 @@ impl KeypointDetector<Gray<f32>> for FastDetector {
         let response = self.response_map(image);
         let w = response.width();
         let h = response.height();
-        non_maximum_suppression(&response, 0.0, 3..w - 3, 3..h - 3)
+        nms(&response, 0.0, 3..w - 3, 3..h - 3)
     }
 }
 
