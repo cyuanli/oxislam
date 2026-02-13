@@ -5,6 +5,9 @@
 use crate::image::Image;
 use crate::pixel::{Gray, Rgb};
 
+const _: () = assert!(std::mem::size_of::<Rgb<u8>>() == 3);
+const _: () = assert!(std::mem::align_of::<Rgb<u8>>() == 1);
+
 // --- Pixel-level conversions ---
 
 impl From<image::Rgb<u8>> for Rgb<u8> {

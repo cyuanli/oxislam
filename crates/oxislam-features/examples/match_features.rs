@@ -9,14 +9,14 @@ use oxislam_features::descriptor::brief::{
 use oxislam_features::descriptor::patch::PatchExtractor;
 use oxislam_features::detector::fast::FastDetector;
 use oxislam_features::detector::harris::HarrisDetector;
-use oxislam_features::detector::orb::OrbDetector;
 use oxislam_features::keypoint::Keypoint;
 use oxislam_features::matcher::brute_force::BruteForceMatcher;
 use oxislam_features::matcher::distance::{Hamming, L2Squared};
-use oxislam_features::pyramid::Pyramid;
+use oxislam_features::pipeline::orb::OrbPipeline;
 use oxislam_features::traits::descriptor::DescriptorExtractor;
 use oxislam_features::traits::detector::KeypointDetector;
 use oxislam_features::traits::matcher::{DescriptorMatch, DescriptorMatcher};
+use oxislam_features::traits::pipeline::FeaturePipeline;
 use oxislam_geometry::Point2;
 use oxislam_image::image::{Image, ImageView};
 use oxislam_image::{ConvertTo, Gray, Rgb, gaussian_3x3};
@@ -74,24 +74,42 @@ fn detect(
     let det: Box<dyn KeypointDetector<Gray<f32>>> = match detector {
         "fast" => Box::new(FastDetector::default()),
         "harris" => Box::new(HarrisDetector::default()),
-        "orb" => Box::new(OrbDetector::default()),
         _ => {
             eprintln!("Error: unknown detector '{detector}'");
-            eprintln!("Available detectors: fast, harris, orb");
+            eprintln!("Available detectors: fast, harris");
             process::exit(1);
         }
     };
     let t0 = Instant::now();
-    let (kps1, kps2) = if detector == "orb" {
-        let pyr1 = Pyramid::build(img1, 8, 1.2);
-        let pyr2 = Pyramid::build(img2, 8, 1.2);
-        (det.detect_multiscale(&pyr1), det.detect_multiscale(&pyr2))
-    } else {
-        (det.detect(img1), det.detect(img2))
-    };
+    let kps1 = det.detect(img1);
+    let kps2 = det.detect(img2);
     let ms = t0.elapsed().as_secs_f64() * 1000.0;
     println!("Detected {} + {} keypoints in {ms:.1}ms ({})", kps1.len(), kps2.len(), detector);
     (kps1, kps2)
+}
+
+fn orb_pipeline(img1: &ImageView<Gray<f32>>, img2: &ImageView<Gray<f32>>) -> MatchResult {
+    let pipeline = OrbPipeline::default();
+
+    let t0 = Instant::now();
+    let feats1 = pipeline.extract(img1);
+    let feats2 = pipeline.extract(img2);
+    let ms = t0.elapsed().as_secs_f64() * 1000.0;
+    println!("ORB pipeline: {} + {} features in {ms:.1}ms", feats1.len(), feats2.len());
+
+    let matcher = BruteForceMatcher::new(Hamming).with_ratio(0.75);
+    let descs1: Vec<_> = feats1.iter().map(|f| f.descriptor.clone()).collect();
+    let descs2: Vec<_> = feats2.iter().map(|f| f.descriptor.clone()).collect();
+    let t1 = Instant::now();
+    let matches = matcher.match_descriptors(&descs1, &descs2);
+    let ms = t1.elapsed().as_secs_f64() * 1000.0;
+    println!("Found {} matches in {ms:.1}ms", matches.len());
+
+    MatchResult {
+        keypoints1: feats1.into_iter().map(|f| f.keypoint).collect(),
+        keypoints2: feats2.into_iter().map(|f| f.keypoint).collect(),
+        matches,
+    }
 }
 
 fn describe_and_match(
@@ -191,8 +209,12 @@ fn main() {
     let gray2 = gaussian_3x3(&gray2.view());
 
     // Detect, describe, and match
-    let (kps1, kps2) = detect(&args.detector, &gray1.view(), &gray2.view());
-    let result = describe_and_match(&args.descriptor, &gray1.view(), &gray2.view(), kps1, kps2);
+    let result = if args.detector == "orb" {
+        orb_pipeline(&gray1.view(), &gray2.view())
+    } else {
+        let (kps1, kps2) = detect(&args.detector, &gray1.view(), &gray2.view());
+        describe_and_match(&args.descriptor, &gray1.view(), &gray2.view(), kps1, kps2)
+    };
 
     // Create side-by-side visualization
     let ox_rgb1: Image<Rgb<u8>> = rgb1.into();

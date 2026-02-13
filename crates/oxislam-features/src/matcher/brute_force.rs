@@ -18,7 +18,7 @@ impl<Dist> BruteForceMatcher<Dist> {
     pub fn new(distance: Dist) -> Self { Self { distance, ratio: DEFAULT_RATIO } }
 
     /// Set the ratio test threshold (0.0–1.0). A match is rejected when
-    /// `best_distance >= ratio * second_best_distance`. Lower values are
+    /// `best_distance > ratio * second_best_distance`. Lower values are
     /// more selective. Set to 1.0 to disable.
     pub fn with_ratio(mut self, ratio: f32) -> Self {
         assert!((0.0..=1.0).contains(&ratio), "ratio must be in 0.0..=1.0, got {ratio}");
@@ -46,7 +46,7 @@ impl<D: MaybeSend + MaybeSync, Dist: Distance<D> + MaybeSync> DescriptorMatcher<
                 }
             }
 
-            if best >= self.ratio * second_best {
+            if best > self.ratio * second_best {
                 return None;
             }
 
@@ -83,9 +83,14 @@ mod tests {
         let clear = [desc([0b1111]), desc([0b0001]), desc([0b0011])];
         assert_eq!(matcher.match_descriptors(&source, &clear).len(), 1);
 
-        // best=3 bits, second_best=4 bits → ratio 0.75, rejected (>=)
-        let ambiguous = [desc([0b0111]), desc([0b1111])];
-        let source = [desc([0b0000])];
-        assert_eq!(matcher.match_descriptors(&source, &ambiguous).len(), 0);
+        // best=3 bits, second_best=4 bits → ratio 0.75, accepted (at threshold)
+        let borderline = [desc([0b0111]), desc([0b1111])];
+        let source2 = [desc([0b0000])];
+        assert_eq!(matcher.match_descriptors(&source2, &borderline).len(), 1);
+
+        // best=3 bits, second_best=3 bits → ratio 1.0, rejected (ambiguous)
+        let ambiguous = [desc([0b0111]), desc([0b1110])];
+        let source3 = [desc([0b0000])];
+        assert_eq!(matcher.match_descriptors(&source3, &ambiguous).len(), 0);
     }
 }
